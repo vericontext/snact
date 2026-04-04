@@ -1,6 +1,8 @@
 mod cmd;
+mod validate;
 
 use clap::{Parser, Subcommand};
+use std::io::IsTerminal;
 
 #[derive(Parser)]
 #[command(
@@ -13,9 +15,13 @@ struct Cli {
     #[arg(long, default_value = "9222", global = true)]
     port: u16,
 
-    /// Output format: text (default) or json
-    #[arg(long, default_value = "text", global = true)]
-    output: String,
+    /// Output format: text or json (auto-detects json when piped)
+    #[arg(long, global = true)]
+    output: Option<String>,
+
+    /// Preview what would happen without executing
+    #[arg(long, global = true)]
+    dry_run: bool,
 
     /// Verbose logging
     #[arg(long, global = true)]
@@ -164,6 +170,21 @@ enum BrowserAction {
     },
 }
 
+/// Resolved output format after TTY detection.
+fn resolve_output_format(explicit: Option<&str>) -> &str {
+    match explicit {
+        Some(fmt) => fmt,
+        None => {
+            // Auto-detect: use JSON when stdout is not a terminal (piped to agent)
+            if std::io::stdout().is_terminal() {
+                "text"
+            } else {
+                "json"
+            }
+        }
+    }
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> anyhow::Result<()> {
     let cli = Cli::parse();
@@ -172,70 +193,82 @@ async fn main() -> anyhow::Result<()> {
         tracing_subscriber_init();
     }
 
+    let fmt = resolve_output_format(cli.output.as_deref());
+
     match cli.command {
         Commands::Snap { url, focus } => {
-            cmd::snap::run(cli.port, url.as_deref(), focus.as_deref()).await?;
+            if let Some(f) = &focus {
+                validate::css_selector(f)?;
+            }
+            cmd::snap::run(cli.port, url.as_deref(), focus.as_deref(), fmt).await?;
         }
         Commands::Click { element_ref } => {
-            cmd::action::run_click(cli.port, &element_ref).await?;
+            validate::element_ref(&element_ref)?;
+            cmd::action::run_click(cli.port, &element_ref, fmt, cli.dry_run).await?;
         }
         Commands::Fill {
             element_ref,
             value,
         } => {
-            cmd::action::run_fill(cli.port, &element_ref, &value).await?;
+            validate::element_ref(&element_ref)?;
+            cmd::action::run_fill(cli.port, &element_ref, &value, fmt, cli.dry_run).await?;
         }
         Commands::Type {
             element_ref,
             text,
         } => {
-            cmd::action::run_type(cli.port, &element_ref, &text).await?;
+            validate::element_ref(&element_ref)?;
+            cmd::action::run_type(cli.port, &element_ref, &text, fmt, cli.dry_run).await?;
         }
         Commands::Select {
             element_ref,
             value,
         } => {
-            cmd::action::run_select(cli.port, &element_ref, &value).await?;
+            validate::element_ref(&element_ref)?;
+            cmd::action::run_select(cli.port, &element_ref, &value, fmt, cli.dry_run).await?;
         }
         Commands::Scroll { direction, amount } => {
-            cmd::action::run_scroll(cli.port, &direction, amount).await?;
+            cmd::action::run_scroll(cli.port, &direction, amount, fmt, cli.dry_run).await?;
         }
         Commands::Screenshot { file } => {
-            cmd::action::run_screenshot(cli.port, file.as_deref()).await?;
+            cmd::action::run_screenshot(cli.port, file.as_deref(), fmt).await?;
         }
         Commands::Wait { condition } => {
-            cmd::action::run_wait(cli.port, &condition).await?;
+            if condition != "navigation" && condition.parse::<u64>().is_err() {
+                validate::css_selector(&condition)?;
+            }
+            cmd::action::run_wait(cli.port, &condition, fmt).await?;
         }
         Commands::Session { action } => match action {
             SessionAction::Save { name } => {
-                cmd::session::run_save(cli.port, &name).await?;
+                cmd::session::run_save(cli.port, &name, fmt).await?;
             }
             SessionAction::Load { name } => {
-                cmd::session::run_load(cli.port, &name).await?;
+                cmd::session::run_load(cli.port, &name, fmt).await?;
             }
             SessionAction::List => {
-                cmd::session::run_list()?;
+                cmd::session::run_list(fmt)?;
             }
             SessionAction::Delete { name } => {
-                cmd::session::run_delete(&name)?;
+                cmd::session::run_delete(&name, fmt)?;
             }
         },
         Commands::Record { action } => match action {
             RecordAction::Start { name } => {
-                cmd::record::run_start(name.as_deref())?;
+                cmd::record::run_start(name.as_deref(), fmt)?;
             }
             RecordAction::Stop => {
-                cmd::record::run_stop()?;
+                cmd::record::run_stop(fmt)?;
             }
             RecordAction::List => {
-                cmd::record::run_list()?;
+                cmd::record::run_list(fmt)?;
             }
             RecordAction::Delete { name } => {
-                cmd::record::run_delete(&name)?;
+                cmd::record::run_delete(&name, fmt)?;
             }
         },
         Commands::Replay { name, speed } => {
-            cmd::replay::run(cli.port, &name, speed).await?;
+            cmd::replay::run(cli.port, &name, speed, fmt, cli.dry_run).await?;
         }
         Commands::Browser { action } => match action {
             BrowserAction::Launch { headless } => {
