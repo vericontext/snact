@@ -13,14 +13,13 @@ set -e
 
 INPUT=$(cat)
 
-# Extract the command that was run
-COMMAND=$(echo "$INPUT" | grep -o '"command":"[^"]*"' | head -1 | sed 's/"command":"//;s/"$//' || true)
+# Extract the command from PostToolUse stdin JSON (structure: {tool_input: {command: "..."}})
+COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 # Only act on git commit commands
-case "$COMMAND" in
-    *"git commit"*) ;;
-    *) exit 0 ;;
-esac
+if ! echo "$COMMAND" | grep -q "git commit"; then
+    exit 0
+fi
 
 # Get the latest commit message
 COMMIT_MSG=$(git log -1 --pretty=%s 2>/dev/null || true)
