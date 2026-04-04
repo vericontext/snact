@@ -8,12 +8,12 @@ use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::sync::{broadcast, mpsc, oneshot, Mutex};
 use tokio_tungstenite::tungstenite::Message;
-use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::WebSocketStream;
 
 use crate::error::CdpResult;
 use crate::types::{CdpCommand, CdpEvent, CdpResponse};
 
-type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
+type WsStream = WebSocketStream<TcpStream>;
 
 /// A pending command awaiting its response.
 struct PendingCommand {
@@ -35,13 +35,27 @@ pub struct CdpTransport {
 }
 
 impl CdpTransport {
-    /// Connect to a CDP WebSocket endpoint.
+    /// Connect to a CDP WebSocket endpoint (ws:// only, no TLS needed for local Chrome).
     pub async fn connect(ws_url: &str) -> CdpResult<Self> {
-        let (ws_stream, _) = connect_async(ws_url).await.map_err(|e| {
+        // Parse the URL to extract host:port for TCP connection
+        let url = ws_url
+            .strip_prefix("ws://")
+            .unwrap_or(ws_url.strip_prefix("wss://").unwrap_or(ws_url));
+        let host_port = url.split('/').next().unwrap_or("127.0.0.1:9222");
+
+        let tcp_stream = TcpStream::connect(host_port).await.map_err(|e| {
             crate::error::CdpTransportError::ConnectionFailed(format!(
-                "Failed to connect to {ws_url}: {e}"
+                "Failed to connect to {host_port}: {e}"
             ))
         })?;
+
+        let (ws_stream, _) = tokio_tungstenite::client_async(ws_url, tcp_stream)
+            .await
+            .map_err(|e| {
+                crate::error::CdpTransportError::ConnectionFailed(format!(
+                    "WebSocket handshake failed for {ws_url}: {e}"
+                ))
+            })?;
 
         Self::from_stream(ws_stream)
     }
