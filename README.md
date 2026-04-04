@@ -35,6 +35,20 @@ ok
 
 ## Installation
 
+### One-line install (macOS / Linux)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/vericontext/snact/main/install.sh | bash
+```
+
+Installs a pre-built binary to `/usr/local/bin/snact`. Supports macOS (arm64/x86_64) and Linux (arm64/x86_64).
+
+### Specific version
+
+```bash
+SNACT_VERSION=v0.1.0 curl -fsSL https://raw.githubusercontent.com/vericontext/snact/main/install.sh | bash
+```
+
 ### From source
 
 ```bash
