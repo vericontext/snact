@@ -1,0 +1,19 @@
+[package]
+name = "snact"
+version.workspace = true
+edition.workspace = true
+
+[[bin]]
+name = "snact"
+path = "src/main.rs"
+
+[dependencies]
+snact-cdp.workspace = true
+snact-core.workspace = true
+tokio.workspace = true
+serde_json.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+clap = { version = "4", features = ["derive"] }
+uuid.workspace = true
+tracing-subscriber = { version = "0.3", features = ["fmt"] }
