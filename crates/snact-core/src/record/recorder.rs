@@ -15,16 +15,14 @@ impl Recorder {
             return Ok(None);
         }
         let json = std::fs::read_to_string(path)?;
-        let state: RecorderState = serde_json::from_str(&json)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let state: RecorderState = serde_json::from_str(&json).map_err(std::io::Error::other)?;
         Ok(Some(state))
     }
 
     /// Save recorder state to disk.
     pub fn save_state(state: &RecorderState) -> std::io::Result<()> {
         let path = crate::data_dir().join("recording.json");
-        let json = serde_json::to_string(state)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let json = serde_json::to_string(state).map_err(std::io::Error::other)?;
         std::fs::write(path, json)
     }
 
@@ -46,11 +44,9 @@ impl Recorder {
     ) {
         state.seq += 1;
 
-        let selector_hint = args
-            .get("ref")
-            .and_then(|ref_id| {
-                element_map.and_then(|map| map.get(ref_id).map(|e| e.selector_hint.clone()))
-            });
+        let selector_hint = args.get("ref").and_then(|ref_id| {
+            element_map.and_then(|map| map.get(ref_id).map(|e| e.selector_hint.clone()))
+        });
 
         let step = WorkflowStep {
             seq: state.seq,

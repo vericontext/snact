@@ -206,24 +206,15 @@ async fn main() -> anyhow::Result<()> {
             validate::element_ref(&element_ref)?;
             cmd::action::run_click(cli.port, &element_ref, fmt, cli.dry_run).await?;
         }
-        Commands::Fill {
-            element_ref,
-            value,
-        } => {
+        Commands::Fill { element_ref, value } => {
             validate::element_ref(&element_ref)?;
             cmd::action::run_fill(cli.port, &element_ref, &value, fmt, cli.dry_run).await?;
         }
-        Commands::Type {
-            element_ref,
-            text,
-        } => {
+        Commands::Type { element_ref, text } => {
             validate::element_ref(&element_ref)?;
             cmd::action::run_type(cli.port, &element_ref, &text, fmt, cli.dry_run).await?;
         }
-        Commands::Select {
-            element_ref,
-            value,
-        } => {
+        Commands::Select { element_ref, value } => {
             validate::element_ref(&element_ref)?;
             cmd::action::run_select(cli.port, &element_ref, &value, fmt, cli.dry_run).await?;
         }

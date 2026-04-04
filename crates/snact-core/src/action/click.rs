@@ -13,13 +13,13 @@ pub async fn execute(
         snact_cdp::CdpTransportError::ConnectionFailed(format!("Failed to load element map: {e}"))
     })?;
 
-    let entry = map.get(ref_id).ok_or_else(|| {
-        snact_cdp::CdpTransportError::CommandFailed {
+    let entry = map
+        .get(ref_id)
+        .ok_or_else(|| snact_cdp::CdpTransportError::CommandFailed {
             method: "click".into(),
             code: -1,
             message: format!("Element {ref_id} not found. Run `snact snap` first."),
-        }
-    })?;
+        })?;
 
     // Get box model to find center coordinates
     let box_model = transport

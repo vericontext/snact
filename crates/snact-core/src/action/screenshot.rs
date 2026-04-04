@@ -37,7 +37,10 @@ fn base64_decode(input: &str) -> Result<Vec<u8>, String> {
     let mut output = Vec::new();
 
     // Use a basic implementation
-    let chars: Vec<u8> = input.bytes().filter(|&b| b != b'\n' && b != b'\r').collect();
+    let chars: Vec<u8> = input
+        .bytes()
+        .filter(|&b| b != b'\n' && b != b'\r')
+        .collect();
     let mut i = 0;
 
     while i < chars.len() {

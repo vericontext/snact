@@ -31,16 +31,14 @@ impl SessionProfile {
 
     pub fn save(&self) -> std::io::Result<()> {
         let path = Self::file_path(&self.name);
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let json = serde_json::to_string_pretty(self).map_err(std::io::Error::other)?;
         std::fs::write(path, json)
     }
 
     pub fn load(name: &str) -> std::io::Result<Self> {
         let path = Self::file_path(name);
         let json = std::fs::read_to_string(path)?;
-        serde_json::from_str(&json)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+        serde_json::from_str(&json).map_err(std::io::Error::other)
     }
 
     pub fn delete(name: &str) -> std::io::Result<()> {

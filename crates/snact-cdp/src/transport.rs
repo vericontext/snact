@@ -143,8 +143,7 @@ impl CdpTransport {
                 method: command.method_name().to_string(),
                 code: err.code,
                 message: err.message,
-            }
-            .into());
+            });
         }
 
         let result = resp.result.unwrap_or(serde_json::Value::Null);
@@ -185,11 +184,9 @@ impl CdpTransport {
             }
         })
         .await
-        .map_err(|_| {
-            crate::error::CdpTransportError::Timeout {
-                method: method_for_err,
-                timeout_ms: timeout.as_millis() as u64,
-            }
+        .map_err(|_| crate::error::CdpTransportError::Timeout {
+            method: method_for_err,
+            timeout_ms: timeout.as_millis() as u64,
         })?
     }
 }

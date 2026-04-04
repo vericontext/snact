@@ -18,7 +18,10 @@ fn ok(fmt: &str, action: &str, extra: Option<(&str, &str)>) {
 
 fn dry(fmt: &str, action: &str, args: serde_json::Value) {
     if fmt == "json" {
-        println!("{}", serde_json::json!({"status": "dry_run", "action": action, "args": args}));
+        println!(
+            "{}",
+            serde_json::json!({"status": "dry_run", "action": action, "args": args})
+        );
     } else {
         println!("[dry-run] {action} {args}");
     }
@@ -35,9 +38,19 @@ pub async fn run_click(port: u16, ref_id: &str, fmt: &str, dry_run: bool) -> Res
     Ok(())
 }
 
-pub async fn run_fill(port: u16, ref_id: &str, value: &str, fmt: &str, dry_run: bool) -> Result<()> {
+pub async fn run_fill(
+    port: u16,
+    ref_id: &str,
+    value: &str,
+    fmt: &str,
+    dry_run: bool,
+) -> Result<()> {
     if dry_run {
-        dry(fmt, "fill", serde_json::json!({"ref": ref_id, "value": value}));
+        dry(
+            fmt,
+            "fill",
+            serde_json::json!({"ref": ref_id, "value": value}),
+        );
         return Ok(());
     }
     let transport = snact_cdp::connect(port).await?;
@@ -48,7 +61,11 @@ pub async fn run_fill(port: u16, ref_id: &str, value: &str, fmt: &str, dry_run: 
 
 pub async fn run_type(port: u16, ref_id: &str, text: &str, fmt: &str, dry_run: bool) -> Result<()> {
     if dry_run {
-        dry(fmt, "type", serde_json::json!({"ref": ref_id, "text": text}));
+        dry(
+            fmt,
+            "type",
+            serde_json::json!({"ref": ref_id, "text": text}),
+        );
         return Ok(());
     }
     let transport = snact_cdp::connect(port).await?;
@@ -57,9 +74,19 @@ pub async fn run_type(port: u16, ref_id: &str, text: &str, fmt: &str, dry_run: b
     Ok(())
 }
 
-pub async fn run_select(port: u16, ref_id: &str, value: &str, fmt: &str, dry_run: bool) -> Result<()> {
+pub async fn run_select(
+    port: u16,
+    ref_id: &str,
+    value: &str,
+    fmt: &str,
+    dry_run: bool,
+) -> Result<()> {
     if dry_run {
-        dry(fmt, "select", serde_json::json!({"ref": ref_id, "value": value}));
+        dry(
+            fmt,
+            "select",
+            serde_json::json!({"ref": ref_id, "value": value}),
+        );
         return Ok(());
     }
     let transport = snact_cdp::connect(port).await?;
@@ -68,9 +95,19 @@ pub async fn run_select(port: u16, ref_id: &str, value: &str, fmt: &str, dry_run
     Ok(())
 }
 
-pub async fn run_scroll(port: u16, direction: &str, amount: Option<i64>, fmt: &str, dry_run: bool) -> Result<()> {
+pub async fn run_scroll(
+    port: u16,
+    direction: &str,
+    amount: Option<i64>,
+    fmt: &str,
+    dry_run: bool,
+) -> Result<()> {
     if dry_run {
-        dry(fmt, "scroll", serde_json::json!({"direction": direction, "amount": amount}));
+        dry(
+            fmt,
+            "scroll",
+            serde_json::json!({"direction": direction, "amount": amount}),
+        );
         return Ok(());
     }
     let transport = snact_cdp::connect(port).await?;

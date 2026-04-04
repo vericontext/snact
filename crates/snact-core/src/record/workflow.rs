@@ -34,16 +34,14 @@ impl Workflow {
 
     pub fn save(&self) -> std::io::Result<()> {
         let path = Self::workflows_dir().join(format!("{}.json", self.name));
-        let json = serde_json::to_string_pretty(self)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+        let json = serde_json::to_string_pretty(self).map_err(std::io::Error::other)?;
         std::fs::write(path, json)
     }
 
     pub fn load(name: &str) -> std::io::Result<Self> {
         let path = Self::workflows_dir().join(format!("{name}.json"));
         let json = std::fs::read_to_string(path)?;
-        serde_json::from_str(&json)
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
+        serde_json::from_str(&json).map_err(std::io::Error::other)
     }
 
     pub fn list() -> std::io::Result<Vec<String>> {

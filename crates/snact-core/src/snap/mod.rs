@@ -36,10 +36,7 @@ pub async fn execute(
 
         // Wait for page load
         transport
-            .wait_for_event(
-                "Page.loadEventFired",
-                std::time::Duration::from_secs(30),
-            )
+            .wait_for_event("Page.loadEventFired", std::time::Duration::from_secs(30))
             .await?;
     }
 

@@ -13,9 +13,7 @@ pub async fn capture_session(
     name: &str,
 ) -> Result<SessionProfile, snact_cdp::CdpTransportError> {
     // Get cookies
-    let cookies_resp = transport
-        .send(&NetworkGetCookies { urls: None })
-        .await?;
+    let cookies_resp = transport.send(&NetworkGetCookies { urls: None }).await?;
 
     // Get frame tree to discover origins
     let frame_tree = transport.send(&PageGetFrameTree {}).await?;
@@ -87,10 +85,7 @@ pub async fn restore_session(
         .await?;
 
     transport
-        .wait_for_event(
-            "Page.loadEventFired",
-            std::time::Duration::from_secs(30),
-        )
+        .wait_for_event("Page.loadEventFired", std::time::Duration::from_secs(30))
         .await?;
 
     // Restore localStorage

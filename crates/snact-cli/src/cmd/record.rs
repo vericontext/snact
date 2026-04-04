@@ -7,17 +7,21 @@ pub fn run_start(name: Option<&str>, fmt: &str) -> Result<()> {
         anyhow::bail!("Recording already in progress. Run `snact record stop` first.");
     }
 
-    let name = name
-        .map(|s| s.to_string())
-        .unwrap_or_else(|| {
-            format!("recording-{}", uuid::Uuid::new_v4().to_string().split('-').next().unwrap())
-        });
+    let name = name.map(|s| s.to_string()).unwrap_or_else(|| {
+        format!(
+            "recording-{}",
+            uuid::Uuid::new_v4().to_string().split('-').next().unwrap()
+        )
+    });
 
     let state = RecorderState::new(&name);
     Recorder::save_state(&state)?;
 
     if fmt == "json" {
-        println!("{}", serde_json::json!({"status": "ok", "action": "record_start", "name": name}));
+        println!(
+            "{}",
+            serde_json::json!({"status": "ok", "action": "record_start", "name": name})
+        );
     } else {
         println!("Recording started: {name}");
     }
@@ -34,12 +38,15 @@ pub fn run_stop(fmt: &str) -> Result<()> {
     Recorder::clear_state()?;
 
     if fmt == "json" {
-        println!("{}", serde_json::json!({
-            "status": "ok",
-            "action": "record_stop",
-            "name": workflow.name,
-            "steps": workflow.steps.len(),
-        }));
+        println!(
+            "{}",
+            serde_json::json!({
+                "status": "ok",
+                "action": "record_stop",
+                "name": workflow.name,
+                "steps": workflow.steps.len(),
+            })
+        );
     } else {
         println!(
             "Recording saved: {} ({} steps)",
@@ -67,7 +74,10 @@ pub fn run_list(fmt: &str) -> Result<()> {
 pub fn run_delete(name: &str, fmt: &str) -> Result<()> {
     Workflow::delete(name)?;
     if fmt == "json" {
-        println!("{}", serde_json::json!({"status": "ok", "action": "record_delete", "name": name}));
+        println!(
+            "{}",
+            serde_json::json!({"status": "ok", "action": "record_delete", "name": name})
+        );
     } else {
         println!("Workflow '{name}' deleted");
     }

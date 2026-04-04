@@ -15,7 +15,9 @@ pub fn element_ref(ref_id: &str) -> Result<()> {
     }
 
     if !id_part.chars().all(|c| c.is_alphanumeric() || c == '_') {
-        bail!("Invalid element ref '{ref_id}': only alphanumeric characters and underscores allowed");
+        bail!(
+            "Invalid element ref '{ref_id}': only alphanumeric characters and underscores allowed"
+        );
     }
 
     if id_part.contains("..") {

@@ -64,9 +64,8 @@ async fn http_get(port: u16, path: &str) -> CdpResult<String> {
                 ))
             })?;
 
-        let request = format!(
-            "GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n"
-        );
+        let request =
+            format!("GET {path} HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nConnection: close\r\n\r\n");
         stream.write_all(request.as_bytes()).await.map_err(|e| {
             CdpTransportError::ConnectionFailed(format!("Failed to send request: {e}"))
         })?;
@@ -82,8 +81,7 @@ async fn http_get(port: u16, path: &str) -> CdpResult<String> {
                     if let Some(body_start) = text.find("\r\n\r\n") {
                         let body = &text[body_start + 4..];
                         let trimmed = body.trim();
-                        if (trimmed.ends_with('}') || trimmed.ends_with(']'))
-                            && !trimmed.is_empty()
+                        if (trimmed.ends_with('}') || trimmed.ends_with(']')) && !trimmed.is_empty()
                         {
                             break;
                         }
@@ -109,9 +107,7 @@ async fn http_get(port: u16, path: &str) -> CdpResult<String> {
     })
     .await
     .map_err(|_| {
-        CdpTransportError::BrowserNotFound(format!(
-            "Timeout connecting to Chrome on port {port}"
-        ))
+        CdpTransportError::BrowserNotFound(format!("Timeout connecting to Chrome on port {port}"))
     })?
 }
 

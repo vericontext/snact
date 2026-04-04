@@ -14,13 +14,13 @@ pub async fn execute(
         snact_cdp::CdpTransportError::ConnectionFailed(format!("Failed to load element map: {e}"))
     })?;
 
-    let entry = map.get(ref_id).ok_or_else(|| {
-        snact_cdp::CdpTransportError::CommandFailed {
+    let entry = map
+        .get(ref_id)
+        .ok_or_else(|| snact_cdp::CdpTransportError::CommandFailed {
             method: "fill".into(),
             code: -1,
             message: format!("Element {ref_id} not found. Run `snact snap` first."),
-        }
-    })?;
+        })?;
 
     // Resolve backend node to a remote object
     let resolved = transport
@@ -31,13 +31,15 @@ pub async fn execute(
         })
         .await?;
 
-    let object_id = resolved.object.object_id.ok_or_else(|| {
-        snact_cdp::CdpTransportError::CommandFailed {
-            method: "fill".into(),
-            code: -1,
-            message: "Could not resolve element to remote object".into(),
-        }
-    })?;
+    let object_id =
+        resolved
+            .object
+            .object_id
+            .ok_or_else(|| snact_cdp::CdpTransportError::CommandFailed {
+                method: "fill".into(),
+                code: -1,
+                message: "Could not resolve element to remote object".into(),
+            })?;
 
     // Focus, clear, set value, and dispatch events
     let js = r#"

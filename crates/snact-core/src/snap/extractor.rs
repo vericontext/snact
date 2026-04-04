@@ -2,9 +2,7 @@
 
 use std::collections::HashMap;
 
-use snact_cdp::commands::{
-    AccessibilityGetFullAXTree, AXNode, DomSnapshotCaptureSnapshot,
-};
+use snact_cdp::commands::{AXNode, AccessibilityGetFullAXTree, DomSnapshotCaptureSnapshot};
 use snact_cdp::types::BackendNodeId;
 use snact_cdp::CdpTransport;
 
@@ -28,9 +26,7 @@ pub async fn extract(
     transport: &CdpTransport,
 ) -> Result<Vec<RawElement>, snact_cdp::CdpTransportError> {
     // Enable Page events for proper load detection
-    transport
-        .send(&snact_cdp::commands::PageEnable {})
-        .await?;
+    transport.send(&snact_cdp::commands::PageEnable {}).await?;
 
     // Capture DOM snapshot with computed styles for visibility checks
     let snapshot_cmd = DomSnapshotCaptureSnapshot {
@@ -71,7 +67,10 @@ pub async fn extract(
         for (i, &node_idx) in layout.node_index.iter().enumerate() {
             if let Some(bounds) = layout.bounds.get(i) {
                 if bounds.len() == 4 {
-                    layout_bounds.insert(node_idx as usize, [bounds[0], bounds[1], bounds[2], bounds[3]]);
+                    layout_bounds.insert(
+                        node_idx as usize,
+                        [bounds[0], bounds[1], bounds[2], bounds[3]],
+                    );
                 }
             }
         }
@@ -82,12 +81,7 @@ pub async fn extract(
             if let Some(style_indices) = layout.styles.get(i) {
                 let values: Vec<String> = style_indices
                     .iter()
-                    .map(|&si| {
-                        strings
-                            .get(si as usize)
-                            .cloned()
-                            .unwrap_or_default()
-                    })
+                    .map(|&si| strings.get(si as usize).cloned().unwrap_or_default())
                     .collect();
                 style_values.insert(node_idx as usize, values);
             }
@@ -119,16 +113,17 @@ pub async fn extract(
             let is_visible = check_visibility(&style_values.get(&i), bounds);
 
             // Get accessibility info
-            let (role, name, value, ax_props) = if let Some(ax_node) = ax_by_backend_id.get(&backend_id) {
-                (
-                    ax_value_str(&ax_node.role),
-                    ax_value_str(&ax_node.name),
-                    ax_value_str(&ax_node.value),
-                    extract_ax_properties(ax_node),
-                )
-            } else {
-                (String::new(), String::new(), String::new(), HashMap::new())
-            };
+            let (role, name, value, ax_props) =
+                if let Some(ax_node) = ax_by_backend_id.get(&backend_id) {
+                    (
+                        ax_value_str(&ax_node.role),
+                        ax_value_str(&ax_node.name),
+                        ax_value_str(&ax_node.value),
+                        extract_ax_properties(ax_node),
+                    )
+                } else {
+                    (String::new(), String::new(), String::new(), HashMap::new())
+                };
 
             elements.push(RawElement {
                 backend_node_id: backend_id,

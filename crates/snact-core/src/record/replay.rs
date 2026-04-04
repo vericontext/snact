@@ -51,28 +51,28 @@ pub async fn execute(
                 }
             }
             "fill" => {
-                if let (Some(ref_id), Some(value)) =
-                    (step.args.get("ref"), step.args.get("value"))
+                if let (Some(ref_id), Some(value)) = (step.args.get("ref"), step.args.get("value"))
                 {
                     action::fill::execute(transport, ref_id, value).await?;
                 }
             }
             "type" => {
-                if let (Some(ref_id), Some(text)) =
-                    (step.args.get("ref"), step.args.get("text"))
-                {
+                if let (Some(ref_id), Some(text)) = (step.args.get("ref"), step.args.get("text")) {
                     action::type_text::execute(transport, ref_id, text).await?;
                 }
             }
             "select" => {
-                if let (Some(ref_id), Some(value)) =
-                    (step.args.get("ref"), step.args.get("value"))
+                if let (Some(ref_id), Some(value)) = (step.args.get("ref"), step.args.get("value"))
                 {
                     action::select::execute(transport, ref_id, value).await?;
                 }
             }
             "scroll" => {
-                let dir = step.args.get("direction").map(|s| s.as_str()).unwrap_or("down");
+                let dir = step
+                    .args
+                    .get("direction")
+                    .map(|s| s.as_str())
+                    .unwrap_or("down");
                 let amount = step.args.get("amount").and_then(|s| s.parse().ok());
                 action::scroll::execute(transport, dir, amount).await?;
             }
