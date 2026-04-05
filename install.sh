@@ -73,20 +73,20 @@ install() {
 
     info "Downloading ${url}"
     if command -v curl &>/dev/null; then
-        curl -fsSL "$url" -o "${tmpdir}/snact.tar.gz"
+        curl -fsSL "$url" -o "${TMPDIR_INSTALL}/snact.tar.gz"
     else
-        wget -qO "${tmpdir}/snact.tar.gz" "$url"
+        wget -qO "${TMPDIR_INSTALL}/snact.tar.gz" "$url"
     fi
 
     info "Extracting"
-    tar xzf "${tmpdir}/snact.tar.gz" -C "$TMPDIR_INSTALL"
+    tar xzf "${TMPDIR_INSTALL}/snact.tar.gz" -C "$TMPDIR_INSTALL"
 
     # Install binary
     if [ -w "$INSTALL_DIR" ]; then
-        mv "${tmpdir}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
+        mv "${TMPDIR_INSTALL}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
     else
         info "Installing to ${INSTALL_DIR} (requires sudo)"
-        sudo mv "${tmpdir}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
+        sudo mv "${TMPDIR_INSTALL}/${BINARY}" "${INSTALL_DIR}/${BINARY}"
     fi
 
     chmod +x "${INSTALL_DIR}/${BINARY}"
