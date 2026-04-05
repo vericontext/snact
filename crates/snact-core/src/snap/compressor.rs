@@ -122,7 +122,11 @@ fn format_extras(el: &RawElement) -> String {
 
     // placeholder (only if not already used as label)
     if let Some(ph) = el.attributes.get("placeholder") {
-        if !ph.is_empty() && el.name.is_empty() && el.attributes.get("aria-label").is_none() && el.attributes.get("title").is_none() {
+        if !ph.is_empty()
+            && el.name.is_empty()
+            && !el.attributes.contains_key("aria-label")
+            && !el.attributes.contains_key("title")
+        {
             // placeholder was used as label, skip in extras
         } else if !ph.is_empty() {
             extras.push(format!("placeholder=\"{ph}\""));
