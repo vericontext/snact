@@ -122,8 +122,14 @@ impl ManagedBrowser {
     pub fn launch(port: u16, headless: bool) -> CdpResult<Self> {
         let chrome_path = find_chrome()?;
 
+        // Use a separate user-data-dir so Chrome launches as an independent instance
+        // (without this, Chrome merges into an existing instance and ignores --remote-debugging-port)
+        let user_data_dir = std::env::temp_dir().join(format!("snact-chrome-{port}"));
+        std::fs::create_dir_all(&user_data_dir).ok();
+
         let mut args = vec![
             format!("--remote-debugging-port={port}"),
+            format!("--user-data-dir={}", user_data_dir.display()),
             "--no-first-run".to_string(),
             "--no-default-browser-check".to_string(),
             "--disable-background-networking".to_string(),

@@ -1,19 +1,17 @@
 #!/bin/bash
 set -e
 
-# Auto-release hook: after a git commit, check if it should trigger a release.
+# Auto-release hook: after a git commit with conventional prefix,
+# bump Cargo.toml version, amend the commit, tag, and push.
 #
-# Triggers on commits with messages starting with:
+# Triggers:
 #   feat:  → minor bump (0.1.0 → 0.2.0)
 #   fix:   → patch bump (0.1.0 → 0.1.1)
 #   release: vX.Y.Z → exact version
-#
-# Reads current version from the latest git tag, bumps accordingly,
-# creates a new tag, and pushes it to trigger the GitHub Actions release.
 
 INPUT=$(cat)
 
-# Extract the command from PostToolUse stdin JSON (structure: {tool_input: {command: "..."}})
+# Extract the command from PostToolUse stdin JSON
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
 # Only act on git commit commands
@@ -58,10 +56,13 @@ PATCH=${PATCH:-0}
 # Compute new version
 if [ -n "$EXACT_VERSION" ]; then
     NEW_TAG="$EXACT_VERSION"
+    NEW_VERSION="${EXACT_VERSION#v}"
 elif [ "$BUMP" = "minor" ]; then
-    NEW_TAG="v${MAJOR}.$((MINOR + 1)).0"
+    NEW_VERSION="${MAJOR}.$((MINOR + 1)).0"
+    NEW_TAG="v${NEW_VERSION}"
 elif [ "$BUMP" = "patch" ]; then
-    NEW_TAG="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+    NEW_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+    NEW_TAG="v${NEW_VERSION}"
 else
     exit 0
 fi
@@ -72,11 +73,21 @@ if git rev-parse "$NEW_TAG" >/dev/null 2>&1; then
     exit 0
 fi
 
+# Update workspace version in root Cargo.toml
+CARGO_TOML="$CLAUDE_PROJECT_DIR/Cargo.toml"
+if [ -f "$CARGO_TOML" ]; then
+    sed -i '' "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" "$CARGO_TOML" 2>/dev/null || \
+    sed -i "s/^version = \".*\"/version = \"${NEW_VERSION}\"/" "$CARGO_TOML"
+    git add "$CARGO_TOML"
+    git commit --amend --no-edit >/dev/null 2>&1
+    echo "Updated Cargo.toml version to ${NEW_VERSION}" >&2
+fi
+
 # Create and push tag
 git tag "$NEW_TAG" >/dev/null 2>&1
 echo "Created tag: $NEW_TAG" >&2
 
-if git push origin "$NEW_TAG" >/dev/null 2>&1; then
+if git push origin HEAD "$NEW_TAG" >/dev/null 2>&1; then
     echo "Pushed tag: $NEW_TAG → GitHub Actions will build the release" >&2
 else
     echo "Tag $NEW_TAG created locally (push failed — run 'git push origin $NEW_TAG' manually)" >&2
