@@ -708,6 +708,28 @@ impl CdpCommand for NetworkDeleteCookies {
     }
 }
 
+#[derive(Debug, Serialize)]
+pub struct NetworkEnable {}
+
+impl CdpCommand for NetworkEnable {
+    type Response = serde_json::Value;
+    fn method_name(&self) -> &'static str {
+        "Network.enable"
+    }
+}
+
+#[derive(Debug, Serialize)]
+pub struct NetworkSetExtraHTTPHeaders {
+    pub headers: std::collections::HashMap<String, String>,
+}
+
+impl CdpCommand for NetworkSetExtraHTTPHeaders {
+    type Response = serde_json::Value;
+    fn method_name(&self) -> &'static str {
+        "Network.setExtraHTTPHeaders"
+    }
+}
+
 // ============================================================
 // Emulation domain
 // ============================================================

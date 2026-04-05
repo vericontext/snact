@@ -23,6 +23,10 @@ struct Cli {
     #[arg(long, global = true)]
     dry_run: bool,
 
+    /// Browser language for Accept-Language header (e.g. en-US, ko, ja)
+    #[arg(long, default_value = "en-US", global = true)]
+    lang: String,
+
     /// Verbose logging
     #[arg(long, global = true)]
     verbose: bool,
@@ -200,7 +204,7 @@ async fn main() -> anyhow::Result<()> {
             if let Some(f) = &focus {
                 validate::css_selector(f)?;
             }
-            cmd::snap::run(cli.port, url.as_deref(), focus.as_deref(), fmt).await?;
+            cmd::snap::run(cli.port, url.as_deref(), focus.as_deref(), fmt, &cli.lang).await?;
         }
         Commands::Click { element_ref } => {
             validate::element_ref(&element_ref)?;

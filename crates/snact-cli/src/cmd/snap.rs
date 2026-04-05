@@ -1,11 +1,17 @@
 use anyhow::Result;
 
-pub async fn run(port: u16, url: Option<&str>, focus: Option<&str>, fmt: &str) -> Result<()> {
+pub async fn run(
+    port: u16,
+    url: Option<&str>,
+    focus: Option<&str>,
+    fmt: &str,
+    lang: &str,
+) -> Result<()> {
     let transport = snact_cdp::connect(port).await?;
 
     transport.send(&snact_cdp::commands::PageEnable {}).await?;
 
-    let result = snact_core::snap::execute(&transport, url, focus).await?;
+    let result = snact_core::snap::execute(&transport, url, focus, lang).await?;
 
     if fmt == "json" {
         let json = serde_json::json!({

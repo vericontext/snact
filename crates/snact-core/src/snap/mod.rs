@@ -18,7 +18,19 @@ pub async fn execute(
     transport: &CdpTransport,
     url: Option<&str>,
     focus: Option<&str>,
+    lang: &str,
 ) -> Result<SnapResult, snact_cdp::CdpTransportError> {
+    // Set Accept-Language header to control page content language
+    {
+        use snact_cdp::commands::{NetworkEnable, NetworkSetExtraHTTPHeaders};
+        transport.send(&NetworkEnable {}).await?;
+        let mut headers = std::collections::HashMap::new();
+        headers.insert("Accept-Language".to_string(), format!("{lang},en;q=0.9"));
+        transport
+            .send(&NetworkSetExtraHTTPHeaders { headers })
+            .await?;
+    }
+
     // Navigate if URL provided
     if let Some(url) = url {
         use snact_cdp::commands::PageNavigate;
