@@ -4,6 +4,7 @@ set -euo pipefail
 REPO="vericontext/snact"
 INSTALL_DIR="/usr/local/bin"
 BINARY="snact"
+TMPDIR_INSTALL=""
 
 # Colors
 RED='\033[0;31m'
@@ -56,7 +57,7 @@ get_latest_version() {
 
 # Download and install
 install() {
-    local platform version url tmpdir
+    local platform version url
 
     platform=$(detect_platform)
     info "Detected platform: ${platform}"
@@ -67,8 +68,8 @@ install() {
 
     url="https://github.com/${REPO}/releases/download/${version}/${platform}.tar.gz"
 
-    tmpdir=$(mktemp -d)
-    trap 'rm -rf "${tmpdir:-}"' EXIT
+    TMPDIR_INSTALL=$(mktemp -d)
+    trap 'rm -rf "$TMPDIR_INSTALL"' EXIT
 
     info "Downloading ${url}"
     if command -v curl &>/dev/null; then
@@ -78,7 +79,7 @@ install() {
     fi
 
     info "Extracting"
-    tar xzf "${tmpdir}/snact.tar.gz" -C "$tmpdir"
+    tar xzf "${tmpdir}/snact.tar.gz" -C "$TMPDIR_INSTALL"
 
     # Install binary
     if [ -w "$INSTALL_DIR" ]; then
