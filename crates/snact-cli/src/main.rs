@@ -8,7 +8,8 @@ use std::io::IsTerminal;
 #[command(
     name = "snact",
     about = "AI agent-optimized browser CLI — snap + act",
-    version
+    version,
+    after_long_help = AGENT_GUIDE
 )]
 struct Cli {
     /// Chrome debugging port
@@ -37,36 +38,37 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Take a smart snapshot of the current page
+    /// Extract interactable elements as @eN references. Always snap before acting.
+    /// Output: @e1 [role] "label" attrs — one element per line
     Snap {
         /// URL to navigate to (optional if already on a page)
         url: Option<String>,
 
-        /// CSS selector to focus extraction on
+        /// CSS selector to limit extraction scope (e.g. "main", "#content")
         #[arg(long)]
         focus: Option<String>,
     },
 
-    /// Click an element
+    /// Click an element by @eN reference from snap output
     Click {
-        /// Element reference (e.g., @e1)
+        /// Element reference from snap (e.g. @e1)
         #[arg(name = "ref")]
         element_ref: String,
     },
 
-    /// Fill an input field
+    /// Set an input field's value (clears existing). Use for <input>, <textarea>
     Fill {
-        /// Element reference (e.g., @e2)
+        /// Element reference from snap (e.g. @e2)
         #[arg(name = "ref")]
         element_ref: String,
 
-        /// Value to fill
+        /// Value to set
         value: String,
     },
 
-    /// Type text character by character
+    /// Type text character by character with key events. Use for autocomplete/search
     Type {
-        /// Element reference (e.g., @e2)
+        /// Element reference from snap (e.g. @e2)
         #[arg(name = "ref")]
         element_ref: String,
 
@@ -74,37 +76,37 @@ enum Commands {
         text: String,
     },
 
-    /// Select an option in a <select> element
+    /// Select an option in a <select> dropdown by value
     Select {
-        /// Element reference (e.g., @e3)
+        /// Element reference from snap (e.g. @e3)
         #[arg(name = "ref")]
         element_ref: String,
 
-        /// Value to select
+        /// Option value to select
         value: String,
     },
 
-    /// Scroll the page
+    /// Scroll the page in a direction
     Scroll {
         /// Direction: up, down, left, right
         #[arg(default_value = "down")]
         direction: String,
 
-        /// Pixels to scroll
+        /// Pixels to scroll [default: 400]
         #[arg(long)]
         amount: Option<i64>,
     },
 
-    /// Take a screenshot
+    /// Capture a PNG screenshot of the current page
     Screenshot {
-        /// Output file path
+        /// Output file path [default: stdout as base64 in JSON mode]
         #[arg(short, long = "file")]
         file: Option<String>,
     },
 
-    /// Wait for a condition
+    /// Wait for navigation, a CSS selector to appear, or a timeout in ms
     Wait {
-        /// Condition: "navigation", a CSS selector, or milliseconds
+        /// "navigation" | CSS selector | milliseconds (e.g. "2000")
         condition: String,
     },
 
@@ -173,6 +175,36 @@ enum BrowserAction {
         headless: bool,
     },
 }
+
+const AGENT_GUIDE: &str = "\
+WORKFLOW (for AI agents):
+  1. snact browser launch          # start Chrome (separate terminal)
+  2. snact snap <url>              # get interactable elements as @eN refs
+  3. snact click/fill/type @eN     # act on elements by reference
+  4. snact snap                    # re-snap to see updated state
+
+ELEMENT REFERENCES:
+  snap output: @e1 [button] \"Sign In\" id=\"submit\"
+  use @e1 in: snact click @e1 / snact fill @e1 \"value\"
+  refs persist on disk — valid until next snap
+
+OUTPUT MODES:
+  terminal  → human-readable text (default)
+  piped     → JSON auto-detected (snact snap url | jq .)
+  explicit  → --output=json for forced JSON
+
+EXAMPLES:
+  snact snap https://github.com/login       # list login form elements
+  snact fill @e2 \"user\" && snact fill @e3 \"pass\" && snact click @e5
+  snact screenshot --file=page.png          # capture current page
+  snact session save mysite                 # persist cookies/storage
+  snact session load mysite                 # restore session later
+  snact --lang=ko snap https://google.com   # Korean content
+
+SAFETY:
+  --dry-run on any mutation shows what would execute without acting
+  element refs are validated (rejects invalid formats)
+  CSS selectors are validated (rejects javascript: protocol)";
 
 /// Resolved output format after TTY detection.
 fn resolve_output_format(explicit: Option<&str>) -> &str {
