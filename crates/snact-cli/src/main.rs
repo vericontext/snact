@@ -168,20 +168,29 @@ enum RecordAction {
 
 #[derive(Subcommand)]
 enum BrowserAction {
-    /// Launch Chrome with remote debugging
+    /// Launch Chrome with remote debugging. Use --background for agent use
     Launch {
         /// Run in headless mode
         #[arg(long)]
         headless: bool,
+
+        /// Run in background (detach immediately, use "browser stop" to terminate)
+        #[arg(long)]
+        background: bool,
     },
+    /// Stop a running Chrome instance
+    Stop,
+    /// Check if Chrome is running
+    Status,
 }
 
 const AGENT_GUIDE: &str = "\
 WORKFLOW (for AI agents):
-  1. snact browser launch          # start Chrome (separate terminal)
-  2. snact snap <url>              # get interactable elements as @eN refs
-  3. snact click/fill/type @eN     # act on elements by reference
-  4. snact snap                    # re-snap to see updated state
+  1. snact browser launch --background  # start Chrome (auto-detaches)
+  2. snact snap <url>                   # get interactable elements as @eN refs
+  3. snact click/fill/type @eN          # act on elements by reference
+  4. snact snap                         # re-snap to see updated state
+  5. snact browser stop                 # stop Chrome when done
 
 ELEMENT REFERENCES:
   snap output: @e1 [button] \"Sign In\" id=\"submit\"
@@ -298,8 +307,17 @@ async fn main() -> anyhow::Result<()> {
             cmd::replay::run(cli.port, &name, speed, fmt, cli.dry_run).await?;
         }
         Commands::Browser { action } => match action {
-            BrowserAction::Launch { headless } => {
-                cmd::browser::run_launch(cli.port, headless)?;
+            BrowserAction::Launch {
+                headless,
+                background,
+            } => {
+                cmd::browser::run_launch(cli.port, headless, background, fmt)?;
+            }
+            BrowserAction::Stop => {
+                cmd::browser::run_stop(cli.port, fmt)?;
+            }
+            BrowserAction::Status => {
+                cmd::browser::run_status(cli.port, fmt)?;
             }
         },
     }

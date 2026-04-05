@@ -162,6 +162,10 @@ impl ManagedBrowser {
         self.port
     }
 
+    pub fn pid(&self) -> u32 {
+        self.child.id()
+    }
+
     /// Connect to this browser's CDP endpoint.
     pub async fn connect(&self) -> CdpResult<CdpTransport> {
         // Give Chrome a moment to start up and listen on the port.

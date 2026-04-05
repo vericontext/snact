@@ -6,96 +6,96 @@
 mkdir -p ~/dev/personal/playground/snact-demo
 cd ~/dev/personal/playground/snact-demo
 
-# Private repo — GitHub token 필요
+# Private repo — requires GitHub token
 curl -fsSL -H "Authorization: token $(gh auth token)" \
   https://raw.githubusercontent.com/vericontext/snact/main/install.sh | bash
 
 snact --version
 ```
 
-> repo가 public이면 token 없이 `curl -fsSL https://raw.githubusercontent.com/vericontext/snact/main/install.sh | bash`
+> If repo is public: `curl -fsSL https://raw.githubusercontent.com/vericontext/snact/main/install.sh | bash`
 
 ---
 
-## 1. Chrome 실행
+## 1. Launch Chrome
 
 ```bash
-# 브라우저 UI 보이게 실행 (데모용)
+# Launch with visible UI (for demos)
 snact browser launch
 
-# headless 모드
+# Headless mode
 snact browser launch --headless
 ```
 
-> 기본 포트 9222로 CDP 연결됨. 별도 터미널에서 실행 (Ctrl+C로 종료).
+> Connects via CDP on port 9222. Run in a separate terminal (Ctrl+C to stop).
 
 ---
 
-## 2. Smart Snapshot - 토큰 효율 확인
+## 2. Smart Snapshot — Token Efficiency
 
 ```bash
-# 페이지 스냅샷
+# Snapshot a page
 snact snap https://example.com
 
-# 출력 예시:
+# Example output:
 # @e1 [link] "More information..."
 # @e2 [heading] "Example Domain"
 # --- 2 elements (vs Playwright MCP ~114K tokens)
 
-# 특정 영역만 스냅
+# Focus on a specific area
 snact snap https://example.com --focus="body > div"
 
-# JSON 출력 (AI 에이전트 모드)
+# JSON output (AI agent mode)
 snact snap https://example.com --output=json
 ```
 
 ---
 
-## 3. Snap + Act 루프
+## 3. Snap + Act Loop
 
-### 3-1. 기본 클릭
+### 3-1. Basic Click
 
 ```bash
 snact snap https://example.com
-# @e1 [link] "More information..." 확인 후:
+# See @e1 [link] "More information..." then:
 snact click @e1
 ```
 
-### 3-2. 폼 입력 (GitHub 로그인 페이지)
+### 3-2. Form Input (GitHub Login Page)
 
 ```bash
 snact snap https://github.com/login
 
-# 출력에서 username, password 필드의 @eN 번호 확인 후:
+# Find username/password field @eN numbers in output:
 snact fill @eN "your-username"
 snact fill @eM "your-password"
 
-# Sign In 버튼 클릭
+# Click Sign In button
 snact click @eK
 
-# 스냅으로 결과 확인
+# Snap to verify result
 snact snap https://github.com
 ```
 
-### 3-3. 검색 플로우
+### 3-3. Search Flow
 
 ```bash
 snact snap https://www.google.com
 
-# 검색 입력 필드 @eN 확인 후:
+# Find search input @eN then:
 snact fill @eN "snact browser automation"
-snact click @eM   # 검색 버튼
+snact click @eM   # search button
 
-# 결과 페이지 스냅
+# Snap the results page
 snact snap
 ```
 
 ---
 
-## 4. Dry-Run (안전한 사전 확인)
+## 4. Dry-Run (Safe Preview)
 
 ```bash
-# 실제 실행 없이 어떤 액션인지 확인
+# Preview actions without executing
 snact click @e1 --dry-run
 # {"action":"click","args":{"ref":"@e1"},"dry_run":true}
 
@@ -105,19 +105,19 @@ snact fill @e3 "test" --dry-run
 
 ---
 
-## 5. Session 관리
+## 5. Session Management
 
 ```bash
-# 로그인 후 세션 저장
+# Save session after login
 snact session save github
 
-# 세션 목록 확인
+# List saved sessions
 snact session list
 
-# 브라우저 재시작 후 세션 복원
+# Restore session after browser restart
 snact session load github
 
-# 로그인 상태 유지 확인
+# Verify login state persisted
 snact snap https://github.com
 ```
 
@@ -126,36 +126,36 @@ snact snap https://github.com
 ## 6. Record & Replay
 
 ```bash
-# 녹화 시작
+# Start recording
 snact record start "search-demo"
 
-# 일련의 명령 실행
+# Execute a sequence of commands
 snact snap https://www.google.com
 snact fill @eN "snact"
 snact click @eM
 
-# 녹화 종료
+# Stop recording
 snact record stop
 
-# 녹화 목록 확인
+# List recordings
 snact record list
 
-# 리플레이
+# Replay the workflow
 snact replay search-demo
 
-# 느린 속도로 리플레이 (데모 시연용)
+# Slow replay (for demo presentation)
 snact replay search-demo --speed=0.5
 ```
 
 ---
 
-## 7. AI 에이전트 연동 (파이프 모드)
+## 7. AI Agent Integration (Pipe Mode)
 
 ```bash
-# 파이프로 연결하면 자동으로 JSON 출력
+# Piped output auto-detects JSON
 snact snap https://example.com | jq '.elements[] | .ref + " " + .role'
 
-# 스크립트에서 활용
+# Use in scripts
 ELEMENTS=$(snact snap https://example.com --output=json)
 echo "$ELEMENTS" | jq '.count'
 ```
@@ -165,33 +165,94 @@ echo "$ELEMENTS" | jq '.count'
 ## 8. Screenshot
 
 ```bash
-snact screenshot --path=./demo-capture.png
-# 현재 페이지 캡처 저장
+snact screenshot --file=./demo-capture.png
+# Captures the current page
 ```
 
 ---
 
-## Demo Flow (권장 순서)
+## 9. Claude Code + snact (AI Agent Demo)
+
+The real power of snact: let an AI agent drive the browser autonomously.
+Make sure Chrome is running (`snact browser launch` in a separate terminal).
+
+### 9-1. Google Search (Multi-Step)
+
+Tell Claude Code:
+```
+Use snact to search Google for "snact browser automation" and give me
+the titles and URLs of the first 3 results. Run snact --help first.
+```
+
+What Claude Code does autonomously:
+```
+snact --help                              # learn the workflow
+snact snap https://www.google.com         # find search elements
+snact fill @e8 "snact browser automation" # fill search box
+snact click @e12                          # click search button
+snact snap                                # read results
+→ returns structured answer
+```
+
+### 9-2. Hacker News Top Stories
 
 ```
-설치 → Chrome 실행 (별도 터미널) → snap (토큰 효율 강조)
-→ click/fill (snap+act 루프)
-→ dry-run (안전성)
-→ session save/load (상태 유지)
-→ record/replay (자동화)
-→ JSON 파이프 (에이전트 연동)
+Use snact to get the top 5 story titles from Hacker News.
+```
+
+### 9-3. GitHub Repo Info (No Login Required)
+
+```
+Use snact to check the star count and latest commit message
+on the github.com/vericontext/snact repo.
+```
+
+### 9-4. Wikipedia Summary
+
+```
+Use snact to go to the Wikipedia page for "Rust (programming language)"
+and list the table of contents.
+```
+
+### 9-5. Product Hunt Today
+
+```
+Use snact to find today's top 3 products on Product Hunt
+with their names and taglines.
+```
+
+### Tips for Claude Code Demo
+
+- Always have Chrome running first: `snact browser launch`
+- Claude Code will run `snact --help` to learn the workflow automatically
+- The `--output=json` is auto-detected when piped, so Claude Code gets structured data
+- Use `--dry-run` to show safety: Claude Code can preview before acting
+- The entire snap → act → snap loop typically takes 2-5 seconds
+
+---
+
+## Demo Flow (Recommended Order)
+
+```
+Install → Launch Chrome (separate terminal) → snap (token efficiency)
+→ click/fill (snap+act loop)
+→ dry-run (safety)
+→ session save/load (state persistence)
+→ record/replay (automation)
+→ JSON pipe (agent integration)
+→ Claude Code autonomous demo (the wow moment)
 ```
 
 ## Troubleshooting
 
 ```bash
-# Chrome이 이미 실행 중인 경우
+# Check if Chrome is already running
 lsof -i :9222
 
-# 연결 안 될 때 - Chrome을 디버깅 포트와 함께 직접 실행
+# If connection fails — launch Chrome manually with debugging port
 /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
   --remote-debugging-port=9222 --no-first-run --no-default-browser-check
 
-# 포트 변경
+# Change port
 snact --port=9333 snap https://example.com
 ```
