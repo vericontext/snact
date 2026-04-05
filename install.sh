@@ -68,7 +68,7 @@ install() {
     url="https://github.com/${REPO}/releases/download/${version}/${platform}.tar.gz"
 
     tmpdir=$(mktemp -d)
-    trap 'rm -rf "$tmpdir"' EXIT
+    trap 'rm -rf "${tmpdir:-}"' EXIT
 
     info "Downloading ${url}"
     if command -v curl &>/dev/null; then
