@@ -137,6 +137,7 @@ impl ManagedBrowser {
             "--disable-translate".to_string(),
             "--metrics-recording-only".to_string(),
             "--safebrowsing-disable-auto-update".to_string(),
+            "--lang=en-US".to_string(),
         ];
 
         if headless {
