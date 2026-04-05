@@ -43,9 +43,10 @@ fn format_element_line(ref_id: &str, entry: &ElementEntry, raw: &RawElement) -> 
     let role_display = format_role_display(&entry.role, &entry.tag, &raw.attributes);
     parts.push(format!("[{role_display}]"));
 
-    // "name" — accessible name in quotes
-    if !entry.name.is_empty() {
-        parts.push(format!("\"{}\"", entry.name));
+    // "name" — accessible name or best fallback label in quotes
+    let label = best_label(entry, raw);
+    if !label.is_empty() {
+        parts.push(format!("\"{}\"", label));
     }
 
     // Extra decision-relevant attributes
@@ -77,12 +78,53 @@ fn format_role_display(
     }
 }
 
+/// Pick the best human-readable label for an element.
+/// Priority: accessible name > aria-label > title > placeholder > id
+fn best_label(entry: &ElementEntry, raw: &RawElement) -> String {
+    if !entry.name.is_empty() {
+        return truncate(&entry.name, 60);
+    }
+    if let Some(v) = raw.attributes.get("aria-label") {
+        if !v.is_empty() {
+            return truncate(v, 60);
+        }
+    }
+    if let Some(v) = raw.attributes.get("title") {
+        if !v.is_empty() {
+            return truncate(v, 60);
+        }
+    }
+    if let Some(v) = raw.attributes.get("placeholder") {
+        if !v.is_empty() {
+            return truncate(v, 60);
+        }
+    }
+    String::new()
+}
+
+fn truncate(s: &str, max: usize) -> String {
+    if s.len() <= max {
+        s.to_string()
+    } else {
+        format!("{}...", &s[..max - 3])
+    }
+}
+
 fn format_extras(el: &RawElement) -> String {
     let mut extras = Vec::new();
 
-    // placeholder
+    // id — useful for identifying elements
+    if let Some(id) = el.attributes.get("id") {
+        if !id.is_empty() {
+            extras.push(format!("id=\"{id}\""));
+        }
+    }
+
+    // placeholder (only if not already used as label)
     if let Some(ph) = el.attributes.get("placeholder") {
-        if !ph.is_empty() {
+        if !ph.is_empty() && el.name.is_empty() && el.attributes.get("aria-label").is_none() && el.attributes.get("title").is_none() {
+            // placeholder was used as label, skip in extras
+        } else if !ph.is_empty() {
             extras.push(format!("placeholder=\"{ph}\""));
         }
     }
