@@ -180,193 +180,200 @@ snact screenshot --file=./demo-capture.png
 
 ## 9. Claude Code + snact — Killer Demo
 
-This is the real payoff: hand Claude Code a natural language task, and it autonomously drives the browser — snap, act, snap, answer — with no human intervention.
+snact의 진짜 가치는 **반복 워크플로우**에 있습니다.  
+Claude Code가 처음 한 번 배우면, 이후 실행은 LLM 없이 돌아갑니다.
 
 ### Setup (one-time)
 
 ```bash
-# 1. Launch Chrome in background (stays up, doesn't block terminal)
 snact browser launch --background
-
-# 2. Open a new Claude Code session in the same directory
-claude
+claude   # AGENT.md를 자동으로 읽고 snact 워크플로우를 습득
 ```
-
-Claude Code reads `AGENT.md` automatically and knows the full snact workflow.
 
 ---
 
-### Demo A — Live Web Research
+### Demo A — 첫 번째 실행: Claude Code가 워크플로우를 배운다
 
-**You type:**
+**당신이 입력:**
 ```
-Use snact to find the current price of the MacBook Pro 14" M4 Pro on apple.com
-and tell me what storage options are available.
-```
-
-**Claude Code runs autonomously:**
-```
-snact snap https://www.apple.com/shop/buy-mac/macbook-pro/14-inch
-# @e3  [link]   "14-inch MacBook Pro"
-# @e12 [button] "Buy" price="$1,999"
-# @e15 [select] "Storage" id="storage-select"
-# ...
-
-snact snap --focus="#configure-form"
-# @e1 [option] "512GB SSD"
-# @e2 [option] "1TB SSD"
-# @e3 [option] "2TB SSD"
+Use snact to log in to our internal dashboard at app.example.com
+with email "me@company.com" and password "••••••".
+After login, navigate to the Reports tab, click "Export CSV",
+then save this entire session and record it as "daily-report".
 ```
 
-**Claude Code replies:**
-```
-MacBook Pro 14" M4 Pro starts at $1,999.
-Storage options: 512GB SSD / 1TB SSD / 2TB SSD
-```
+**Claude Code가 자율 실행:**
+```bash
+snact snap https://app.example.com/login
+# @e1 [textbox] "Email"     id="email"
+# @e2 [textbox] "Password"  id="password"
+# @e3 [button]  "Sign In"
 
-Total LLM calls: **2 snaps, 0 human steps**.
-
----
-
-### Demo B — Multi-Step Form Automation
-
-**You type:**
-```
-Use snact to go to github.com/login, fill in username "demo-user"
-and password "demo-pass", but use --dry-run so nothing actually happens.
-Show me what would execute.
-```
-
-**Claude Code runs:**
-```
-snact snap https://github.com/login
-# @e1 [textbox] "Username or email address" id="login_field"
-# @e2 [textbox] "Password"                  id="password"
-# @e3 [button]  "Sign in"
-
-snact fill @e1 "demo-user" --dry-run
-# {"status":"dry_run","action":"fill","args":{"ref":"@e1","value":"demo-user"}}
-
-snact fill @e2 "demo-pass" --dry-run
-# {"status":"dry_run","action":"fill","args":{"ref":"@e2","value":"demo-pass"}}
-
-snact click @e3 --dry-run
-# {"status":"dry_run","action":"click","args":{"ref":"@e3"}}
-```
-
-**Why this matters:** Agent previewed a 3-step form workflow with exact refs, zero execution risk, full auditability.
-
----
-
-### Demo C — Scrape + Summarize
-
-**You type:**
-```
-Use snact to get the top 5 stories from Hacker News right now
-with their point counts. Give me a one-line summary of each.
-```
-
-**Claude Code runs:**
-```
-snact snap https://news.ycombinator.com --output ndjson | head -20
-# {"ref":"@e1","role":"link","name":"Show HN: I built X ...","tag":"a"}
-# {"ref":"@e2","role":"link","name":"Ask HN: Why does Y ...","tag":"a"}
-# {"ref":"@e3","role":"link","name":"Postgres just got ...","tag":"a"}
-# ...
-```
-
-**Why NDJSON matters:** Claude Code pipes the stream through `head` — reads only the first 20 elements instead of loading the entire page, saving tokens on element-heavy pages.
-
----
-
-### Demo D — Session + Replay (Zero LLM Cost)
-
-**You type:**
-```
-Use snact to log in to GitHub with my credentials, save the session,
-then record a workflow that visits my notifications page.
-```
-
-**Claude Code runs:**
-```
-snact snap https://github.com/login
-snact fill @e1 "your-username"
-snact fill @e2 "your-password"
+snact fill @e1 "me@company.com"
+snact fill @e2 "••••••"
 snact click @e3
 snact wait navigation
-snact session save github-auth
 
-snact record start check-notifications
-snact snap https://github.com/notifications
+snact session save work          # 쿠키 + localStorage 전체 저장
+
+snact record start daily-report  # 이후 동작 녹화 시작
+snact snap https://app.example.com/dashboard --focus="#main-nav"
+# @e1 [link] "Overview"
+# @e2 [link] "Reports"    ← 여기
+# @e3 [link] "Settings"
+
+snact click @e2
+snact wait navigation
+snact snap --focus="#export-controls"
+# @e1 [button] "Export CSV"
+
+snact click @e1
 snact record stop
 ```
 
-**Next time, you just say:**
+**Claude Code 응답:**
 ```
-Check my GitHub notifications using the saved workflow.
+Done. Session saved as "work", workflow recorded as "daily-report".
+Tomorrow just say: "run the daily report"
 ```
-
-**Claude Code runs:**
-```
-snact session load github-auth
-snact replay check-notifications
-```
-
-Zero LLM reasoning. Zero tokens on the replay.
 
 ---
 
-### Demo E — Schema-Guided Usage
+### Demo B — 이후 매일: 토큰 0, 시간 2초
 
-**You type:**
+**당신이 입력:**
 ```
-What exact JSON does snact snap return? Show me the output schema.
-```
-
-**Claude Code runs:**
-```
-snact schema snap
+run the daily report
 ```
 
-**Returns:**
-```json
-{
-  "description": "Extract interactable elements ...",
-  "output": {
-    "json": {
-      "type": "object",
-      "properties": {
-        "count": { "type": "integer" },
-        "elements": {
-          "additionalProperties": {
-            "properties": {
-              "role": { "type": "string" },
-              "name": { "type": "string" },
-              "tag":  { "type": "string" },
-              ...
-            }
-          }
-        }
-      }
-    }
-  }
-}
+**Claude Code가 실행:**
+```bash
+snact session load work          # 로그인 상태 복원 (브라우저 재시작해도)
+snact replay daily-report        # 녹화된 워크플로우 그대로 실행
 ```
 
-Agent now knows the exact output shape — no hallucinated field names, no trial-and-error.
+**Claude Code 응답:**
+```
+Done. CSV exported to Downloads folder.
+```
+
+LLM 추론: **0턴**.  
+토큰: **0**.  
+소요 시간: **2초**.
+
+Playwright MCP로 같은 작업을 매일 하면 매번 전체 LLM 비용이 발생합니다.
 
 ---
 
-### Why This Works
+### Demo C — 세션이 살아있는 한 무엇이든
 
-| Problem with other tools | snact solution |
-|--------------------------|----------------|
-| Playwright MCP: ~114K tokens per session | snap output: 5–50 tokens per element |
-| Agents guess parameter names | `snact schema` returns exact JSON Schema |
-| Browser state lost between calls | `snact session save/load` persists everything |
-| Repeated workflows burn LLM budget | `snact record/replay` = zero tokens |
-| Agent can't tell if action is safe | `--dry-run` on every mutation |
-| Web content could inject instructions | Prompt injection detection built in |
+로그인 후 `session save`를 해두면, 이후 모든 인증 필요 작업에 재사용됩니다.
+
+**당신이 입력:**
+```
+Use snact to check my GitHub notifications and tell me
+if there's anything urgent. Use the saved github session.
+```
+
+**Claude Code가 실행:**
+```bash
+snact session load github        # 로그인 없이 바로 인증 상태 진입
+snact snap https://github.com/notifications --focus=".notifications-list"
+# @e1 [link] "PR #142 needs your review — vericontext/snact"
+# @e2 [link] "You were mentioned in Issue #89"
+# @e3 [link] "CI failed on branch main"
+```
+
+**Claude Code 응답:**
+```
+3 notifications, 1 urgent:
+- CI failed on main branch (vericontext/snact) — needs immediate attention
+```
+
+GitHub에 로그인하는 LLM 비용: **0**.  
+알림 읽는 snap 1회: **~30 tokens**.
+
+---
+
+### Demo D — 반복 폼 제출: 사람이 할 일을 에이전트에게
+
+**당신이 입력:**
+```
+Use snact to submit expense reports for the following 3 items
+to expenses.company.com. Use the saved work session.
+- Airfare $450, category: Travel, date: 2026-04-01
+- Hotel $320, category: Accommodation, date: 2026-04-01
+- Dinner $85, category: Meals, date: 2026-04-02
+```
+
+**Claude Code가 실행 (3회 반복):**
+```bash
+snact session load work
+snact snap https://expenses.company.com/new --focus="#expense-form"
+# @e1 [textbox]  "Amount"
+# @e2 [combobox] "Category"
+# @e3 [textbox]  "Date"
+# @e4 [button]   "Submit"
+
+snact fill @e1 "450"
+snact select @e2 "Travel"
+snact fill @e3 "2026-04-01"
+snact click @e4 --dry-run    # 제출 전 미리보기
+# {"status":"dry_run","action":"click","args":{"ref":"@e4"}}
+snact click @e4              # 확인 후 실제 제출
+snact wait navigation
+# (반복 × 3)
+```
+
+사람이 폼 3개를 수동으로 채우면 10분.  
+snact로 에이전트가 처리: **30초, 확인 1번**.
+
+---
+
+### Demo E — 스케줄 자동화: LLM 없는 cron
+
+Claude Code에게 한 번 시키면, 이후는 cron으로 돌아갑니다.
+
+**당신이 입력:**
+```
+Use snact to record a workflow that checks our status page
+at status.example.com and screenshots it. Save it as "status-check".
+Then write a shell script that runs it every hour without needing me.
+```
+
+**Claude Code가 생성하는 스크립트:**
+```bash
+#!/bin/bash
+# status-check.sh — runs without LLM
+
+snact browser launch --background
+snact session load monitor
+snact replay status-check
+snact screenshot --file="/logs/status-$(date +%H%M).png"
+snact browser stop
+```
+
+```bash
+# crontab -e
+0 * * * * /usr/local/bin/status-check.sh
+```
+
+이제 매 시간 자동 실행. Claude Code 불필요. 토큰 불필요. API 키 불필요.
+
+---
+
+### 왜 이게 dramatic한가
+
+| | Playwright MCP | snact |
+|--|--|--|
+| 첫 실행 | LLM 추론 필요 | LLM 추론 필요 |
+| **10번째 실행** | **매번 동일 LLM 비용** | **토큰 0** |
+| **100번째 실행** | **100× LLM 비용** | **토큰 0** |
+| 로그인 만료 시 | 재로그인 전체 flow | `session load` 1줄 |
+| cron/자동화 | LLM API 필요 | 쉘 스크립트만으로 가능 |
+| 팀원과 공유 | 불가 (세션 개인) | `session` + `record` 파일 공유 |
+
+**snact의 핵심 가치: 처음 한 번만 LLM을 쓰고, 이후는 영구히 무료로 반복.**
 
 ---
 
