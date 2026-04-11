@@ -16,7 +16,7 @@ struct Cli {
     #[arg(long, default_value = "9222", global = true)]
     port: u16,
 
-    /// Output format: text or json (auto-detects json when piped)
+    /// Output format: text, json, or ndjson (auto-detects json when piped)
     #[arg(long, global = true)]
     output: Option<String>,
 
@@ -137,6 +137,9 @@ enum Commands {
         #[command(subcommand)]
         action: BrowserAction,
     },
+
+    /// Start an MCP server exposing snact tools over JSON-RPC (stdio)
+    Mcp,
 }
 
 #[derive(Subcommand)]
@@ -210,6 +213,11 @@ EXAMPLES:
   snact session load mysite                 # restore session later
   snact --lang=ko snap https://google.com   # Korean content
 
+MCP SERVER:
+  snact mcp                              # start JSON-RPC server over stdio
+  Add to claude_desktop_config.json:
+    {\"mcpServers\":{\"snact\":{\"command\":\"snact\",\"args\":[\"mcp\"]}}}
+
 SAFETY:
   --dry-run on any mutation shows what would execute without acting
   element refs are validated (rejects invalid formats)
@@ -231,15 +239,43 @@ fn resolve_output_format(explicit: Option<&str>) -> &str {
 }
 
 #[tokio::main(flavor = "current_thread")]
-async fn main() -> anyhow::Result<()> {
+async fn main() {
     let cli = Cli::parse();
 
     if cli.verbose {
         tracing_subscriber_init();
     }
 
-    let fmt = resolve_output_format(cli.output.as_deref());
+    let fmt = resolve_output_format(cli.output.as_deref()).to_owned();
 
+    if let Err(e) = dispatch(cli, &fmt).await {
+        emit_error(&e, &fmt);
+        std::process::exit(1);
+    }
+}
+
+fn emit_error(err: &anyhow::Error, fmt: &str) {
+    let msg = err.to_string();
+    let code = if msg.contains("Cannot connect") || msg.contains("BrowserNotFound") || msg.contains("Chrome") {
+        "BROWSER_NOT_CONNECTED"
+    } else if msg.contains("not found") || msg.contains("No such") || msg.contains("does not exist") {
+        "NOT_FOUND"
+    } else if msg.contains("Invalid") || msg.contains("invalid") || msg.contains("Unknown") {
+        "INVALID_INPUT"
+    } else if msg.contains("timeout") || msg.contains("Timeout") {
+        "TIMEOUT"
+    } else {
+        "ERROR"
+    };
+
+    if fmt == "json" {
+        eprintln!("{}", serde_json::json!({"error": {"code": code, "message": msg}}));
+    } else {
+        eprintln!("error: {msg}");
+    }
+}
+
+async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
     match cli.command {
         Commands::Snap { url, focus } => {
             if let Some(f) = &focus {
@@ -253,10 +289,12 @@ async fn main() -> anyhow::Result<()> {
         }
         Commands::Fill { element_ref, value } => {
             validate::element_ref(&element_ref)?;
+            validate::fill_value(&value)?;
             cmd::action::run_fill(cli.port, &element_ref, &value, fmt, cli.dry_run).await?;
         }
         Commands::Type { element_ref, text } => {
             validate::element_ref(&element_ref)?;
+            validate::fill_value(&text)?;
             cmd::action::run_type(cli.port, &element_ref, &text, fmt, cli.dry_run).await?;
         }
         Commands::Select { element_ref, value } => {
@@ -320,6 +358,9 @@ async fn main() -> anyhow::Result<()> {
                 cmd::browser::run_status(cli.port, fmt)?;
             }
         },
+        Commands::Mcp => {
+            cmd::mcp::run(cli.port).await?;
+        }
     }
 
     Ok(())

@@ -31,6 +31,27 @@ pub fn element_ref(ref_id: &str) -> Result<()> {
     Ok(())
 }
 
+/// Validate a fill/type value for safety.
+/// Blocks control characters and excessively long values.
+pub fn fill_value(value: &str) -> Result<()> {
+    if value.len() > 10_000 {
+        bail!(
+            "Value too long ({} chars): maximum 10,000 characters allowed",
+            value.len()
+        );
+    }
+
+    // Block control characters except tab (\t), newline (\n), carriage return (\r)
+    if value.chars().any(|c| {
+        let u = c as u32;
+        u < 0x20 && u != 0x09 && u != 0x0A && u != 0x0D
+    }) {
+        bail!("Value contains disallowed control characters");
+    }
+
+    Ok(())
+}
+
 /// Validate a CSS selector for safety.
 pub fn css_selector(selector: &str) -> Result<()> {
     if selector.is_empty() {
