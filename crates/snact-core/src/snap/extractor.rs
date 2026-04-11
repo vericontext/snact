@@ -174,7 +174,8 @@ pub async fn extract(
             if is_visible {
                 // Headings (h1-h6): collect for section markers
                 if tag.len() == 2 && tag.starts_with('h') {
-                    if let Some(level) = tag[1..].parse::<u8>().ok().filter(|&l| l >= 1 && l <= 6) {
+                    if let Some(level) = tag[1..].parse::<u8>().ok().filter(|l| (1..=6).contains(l))
+                    {
                         let heading_text = collect_child_text(i, nodes, strings, &children_map);
                         if !heading_text.is_empty() {
                             context
