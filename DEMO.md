@@ -191,12 +191,15 @@ claude
 
 ### Day 1 — Claude Code가 워크플로우를 배운다
 
+브라우저에서 직접 GitHub에 로그인한 뒤:
+
 ```
-Use snact to log in to github.com, go to my notifications,
-then save the session and record it as "check-notifications".
+Use snact to save my current browser session as "github"
+and record going to my notifications page as "check-notifications".
 ```
 
-Claude Code가 알아서 로그인 → 네비게이션 → `session save` → `record`까지 처리.
+Claude Code가 현재 로그인 상태를 그대로 캡처 → `session save` → `record`.  
+비밀번호는 snact에 노출되지 않습니다.
 
 ```
 Done. Say "check notifications" any time to run this instantly.
