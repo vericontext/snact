@@ -49,6 +49,21 @@ enum Commands {
         focus: Option<String>,
     },
 
+    /// Read visible text content as structured markdown. Use when you need to understand
+    /// page content (lists, tables, headings) — not just interactable elements.
+    Read {
+        /// URL to navigate to (optional if already on a page)
+        url: Option<String>,
+
+        /// CSS selector to limit reading scope (e.g. "main", "#content", ".pr-list")
+        #[arg(long)]
+        focus: Option<String>,
+
+        /// Maximum number of lines to return [default: 200]
+        #[arg(long, default_value = "200")]
+        max_lines: usize,
+    },
+
     /// Click an element by @eN reference from snap output
     Click {
         /// Element reference from snap (e.g. @e1)
@@ -197,9 +212,15 @@ const AGENT_GUIDE: &str = "\
 WORKFLOW (for AI agents):
   1. snact browser launch --background  # start Chrome (auto-detaches)
   2. snact snap <url>                   # get interactable elements as @eN refs
-  3. snact click/fill/type @eN          # act on elements by reference
-  4. snact snap                         # re-snap to see updated state
-  5. snact browser stop                 # stop Chrome when done
+  3. snact read                         # read visible text content (headings, lists, tables)
+  4. snact click/fill/type @eN          # act on elements by reference
+  5. snact snap                         # re-snap to see updated state
+  6. snact browser stop                 # stop Chrome when done
+
+SNAP vs READ:
+  snap   → interactable elements only (buttons, links, inputs) — use before acting
+  read   → visible text content (headings, paragraphs, lists, tables) — use to understand content
+  Both support --focus=<selector> to scope to a page section.
 
 ELEMENT REFERENCES:
   snap output: @e1 [button] \"Sign In\" id=\"submit\"
@@ -214,6 +235,8 @@ OUTPUT MODES:
 EXAMPLES:
   snact snap https://github.com/login       # list login form elements
   snact fill @e2 \"user\" && snact fill @e3 \"pass\" && snact click @e5
+  snact read https://github.com/pulls       # read PR list as structured text
+  snact read --focus=\"main\"                 # read only the main section
   snact screenshot --file=page.png          # capture current page
   snact session save mysite                 # persist cookies/storage
   snact session load mysite                 # restore session later
@@ -299,6 +322,24 @@ async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
                 validate::css_selector(f)?;
             }
             cmd::snap::run(cli.port, url.as_deref(), focus.as_deref(), fmt, &cli.lang).await?;
+        }
+        Commands::Read {
+            url,
+            focus,
+            max_lines,
+        } => {
+            if let Some(f) = &focus {
+                validate::css_selector(f)?;
+            }
+            cmd::read::run(
+                cli.port,
+                url.as_deref(),
+                focus.as_deref(),
+                fmt,
+                &cli.lang,
+                max_lines,
+            )
+            .await?;
         }
         Commands::Click { element_ref } => {
             validate::element_ref(&element_ref)?;

@@ -36,6 +36,33 @@ fn tool_list() -> Value {
                 }
             },
             {
+                "name": "read",
+                "description": "Read visible text content as structured markdown (headings, paragraphs, lists, tables). Use to understand page content without taking a screenshot. Complement to snap.",
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "url": {
+                            "type": "string",
+                            "description": "URL to navigate to (optional if already on a page)"
+                        },
+                        "focus": {
+                            "type": "string",
+                            "description": "CSS selector to limit scope (e.g. 'main', '#content', '.pr-list')"
+                        },
+                        "max_lines": {
+                            "type": "integer",
+                            "description": "Maximum lines to return",
+                            "default": 200
+                        },
+                        "lang": {
+                            "type": "string",
+                            "description": "Accept-Language header value",
+                            "default": "en-US"
+                        }
+                    }
+                }
+            },
+            {
                 "name": "click",
                 "description": "Click an element by @eN reference from snap output.",
                 "inputSchema": {
@@ -180,6 +207,23 @@ async fn call_tool(name: &str, args: &Value, port: u16) -> Result<String> {
             let transport = snact_cdp::connect(port).await?;
             transport.send(&snact_cdp::commands::PageEnable {}).await?;
             let result = snact_core::snap::execute(&transport, url, focus, lang).await?;
+            Ok(result.output)
+        }
+        "read" => {
+            let url = args.get("url").and_then(|v| v.as_str());
+            let focus = args.get("focus").and_then(|v| v.as_str());
+            let lang = args.get("lang").and_then(|v| v.as_str()).unwrap_or("en-US");
+            let max_lines = args
+                .get("max_lines")
+                .and_then(|v| v.as_u64())
+                .unwrap_or(200) as usize;
+
+            if let Some(f) = focus {
+                crate::validate::css_selector(f)?;
+            }
+
+            let transport = snact_cdp::connect(port).await?;
+            let result = snact_core::read::execute(&transport, url, focus, lang, max_lines).await?;
             Ok(result.output)
         }
         "click" => {

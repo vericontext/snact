@@ -34,6 +34,7 @@ fn full_schema() -> Value {
         "version": env!("CARGO_PKG_VERSION"),
         "commands": {
             "snap":       command_schema("snap").unwrap(),
+            "read":       command_schema("read").unwrap(),
             "click":      command_schema("click").unwrap(),
             "fill":       command_schema("fill").unwrap(),
             "type":       command_schema("type").unwrap(),
@@ -51,6 +52,29 @@ fn full_schema() -> Value {
 
 fn command_schema(name: &str) -> Option<Value> {
     let schema = match name {
+        "read" => json!({
+            "description": "Read visible text content as structured markdown (headings, paragraphs, lists, tables). Use when you need to understand page content — not just interactable elements.",
+            "input": {
+                "type": "object",
+                "properties": {
+                    "url":       {"type": "string", "description": "URL to navigate to (optional if already on page)"},
+                    "focus":     {"type": "string", "description": "CSS selector to limit scope (e.g. 'main', '#content')"},
+                    "lang":      {"type": "string", "description": "Accept-Language header (e.g. en-US, ko)", "default": "en-US"},
+                    "max_lines": {"type": "integer", "description": "Maximum output lines", "default": 200},
+                    "output":    {"type": "string", "enum": ["text", "json"], "default": "text"}
+                }
+            },
+            "output": {
+                "text": "Compact markdown: # headings, - lists, | table rows, plain paragraphs",
+                "json": {
+                    "type": "object",
+                    "properties": {
+                        "content":    {"type": "string"},
+                        "line_count": {"type": "integer"}
+                    }
+                }
+            }
+        }),
         "snap" => json!({
             "description": "Extract interactable elements from the current page as @eN refs.",
             "input": {

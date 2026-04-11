@@ -38,22 +38,36 @@ snact browser stop
 
 ---
 
-## 2. Smart Snapshot — Token Efficiency
+## 2. Two Commands, Any Task
+
+snact는 두 가지 읽기 모드를 제공합니다:
+
+| 명령 | 용도 | 출력 |
+|------|------|------|
+| `snap` | 클릭/입력할 요소 찾기 | `@e1 [button] "Sign In"` |
+| `read` | 페이지 내용 파악하기 | 마크다운 구조화 텍스트 |
 
 ```bash
-# Snapshot a page
+# 인터랙티브 요소 추출 (액션 전에 사용)
 snact snap https://example.com
-
-# Example output:
 # @e1 [link] "More information..."
-# @e2 [heading] "Example Domain"
-# --- 2 elements (vs Playwright MCP ~114K tokens)
+# (2 elements) ← vs Playwright MCP ~114K tokens
 
-# Focus on a specific area
-snact snap https://example.com --focus="body > div"
+# 페이지 내용 읽기 (스크린샷 없이)
+snact read https://example.com
+# # Example Domain
+# This domain is for use in documentation examples.
+# Learn more
 
-# JSON output (AI agent mode)
+# 특정 영역만 읽기
+snact read https://github.com/pulls --focus="main"
+# ## Pull requests
+# - #142 Add MCP server — needs review
+# - #138 Fix CDP connection drop — needs review
+
+# JSON 출력 (파이프 모드)
 snact snap https://example.com --output=json
+snact read https://example.com --output=json
 ```
 
 ---
@@ -255,6 +269,7 @@ GitHub 탭을 열지 않아도 PR 현황이 터미널에 표시됩니다.
 | **매일 실행** | **매번 LLM 비용** | **토큰 0** |
 | cron 자동화 | LLM API 필요 | 쉘 1줄로 가능 |
 | 로그인 유지 | 매번 재인증 | `session load` 1줄 |
+| 복잡한 페이지 읽기 | 전체 DOM 전송 | `read --focus` 로 해당 섹션만 |
 
 ---
 
@@ -272,6 +287,7 @@ snact browser stop
 Install
   → snact browser launch --background    # Chrome up, terminal free
   → snact snap (token efficiency demo)   # vs Playwright ~114K
+  → snact read --focus="main"            # read content without screenshot
   → snact click/fill (snap+act loop)     # @eN refs
   → snact --dry-run (safety demo)        # preview before act
   → snact session save/load              # state persistence
