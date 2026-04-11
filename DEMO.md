@@ -29,7 +29,7 @@ claude
 프롬프트:
 
 ```
-Use snact to find the current price of the MacBook Pro 14" M4 Pro
+Use snact cli to find the current price of the MacBook Pro 14" M4 Pro
 on apple.com and tell me what storage options are available.
 ```
 
@@ -60,7 +60,7 @@ Playwright MCP라면 매 턴 전체 DOM(수만 토큰)을 보내야 할 것을 s
 ### Demo 2: 더 복잡한 리서치 — 여러 사이트 비교
 
 ```
-Use snact to compare the MacBook Pro 14" M4 Pro prices:
+Use snact cli to compare the MacBook Pro 14" M4 Pro prices:
 1. apple.com (official)
 2. bestbuy.com
 3. amazon.com

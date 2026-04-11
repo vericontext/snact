@@ -2,7 +2,6 @@ mod cmd;
 mod validate;
 
 use clap::{Parser, Subcommand};
-use std::io::IsTerminal;
 
 #[derive(Parser)]
 #[command(
@@ -261,12 +260,9 @@ fn resolve_output_format(explicit: Option<&str>) -> &str {
     match explicit {
         Some(fmt) => fmt,
         None => {
-            // Auto-detect: use JSON when stdout is not a terminal (piped to agent)
-            if std::io::stdout().is_terminal() {
-                "text"
-            } else {
-                "json"
-            }
+            // Default to text — contextual snap output is most useful for LLMs.
+            // Use --output=json explicitly when you need structured JSON.
+            "text"
         }
     }
 }
