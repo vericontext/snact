@@ -157,13 +157,28 @@ fn tool_list() -> Value {
                 }
             },
             {
+                "name": "eval",
+                "description": "Execute JavaScript on the current page and return the result. Use for extracting data that snap/read can't capture (e.g. product cards, dynamic content, complex DOM queries).",
+                "inputSchema": {
+                    "type": "object",
+                    "required": ["expression"],
+                    "properties": {
+                        "expression": {
+                            "type": "string",
+                            "description": "JavaScript expression to evaluate. Use JSON.stringify() for complex return values."
+                        }
+                    }
+                }
+            },
+            {
                 "name": "browser_launch",
-                "description": "Launch Chrome with remote debugging. Use background=true for agent workflows.",
+                "description": "Launch Chrome with remote debugging. Uses persistent profile to keep cookies/login state.",
                 "inputSchema": {
                     "type": "object",
                     "properties": {
                         "headless": { "type": "boolean", "default": false },
-                        "background": { "type": "boolean", "default": true }
+                        "background": { "type": "boolean", "default": true },
+                        "profile": { "type": "string", "description": "Profile name (default: 'default'). Persistent profiles reduce bot detection." }
                     }
                 }
             },
@@ -347,6 +362,26 @@ async fn call_tool(name: &str, args: &Value, port: u16) -> Result<String> {
             snact_core::action::wait::execute(&transport, wait_condition).await?;
             Ok(r#"{"status":"ok","action":"wait"}"#.to_string())
         }
+        "eval" => {
+            let expression = args
+                .get("expression")
+                .and_then(|v| v.as_str())
+                .ok_or_else(|| anyhow::anyhow!("Missing required field: expression"))?;
+            let transport = snact_cdp::connect(port).await?;
+            let result = transport
+                .send(&snact_cdp::commands::RuntimeEvaluate {
+                    expression: expression.to_string(),
+                    return_by_value: Some(true),
+                    await_promise: Some(true),
+                    context_id: None,
+                })
+                .await?;
+            if let Some(exc) = result.exception_details {
+                anyhow::bail!("JavaScript error: {:?}", exc);
+            }
+            let value = result.result.value.unwrap_or(serde_json::Value::Null);
+            Ok(serde_json::to_string(&value)?)
+        }
         "browser_launch" => {
             let headless = args
                 .get("headless")
@@ -375,7 +410,12 @@ async fn call_tool(name: &str, args: &Value, port: u16) -> Result<String> {
                     std::fs::remove_file(&pid_path).ok();
                 }
             }
-            let browser = snact_cdp::ManagedBrowser::launch(port, headless)
+            let profile_name = args
+                .get("profile")
+                .and_then(|v| v.as_str())
+                .unwrap_or("default");
+            let profile_dir = snact_core::data_dir().join("profiles").join(profile_name);
+            let browser = snact_cdp::ManagedBrowser::launch(port, headless, &profile_dir)
                 .map_err(|e| anyhow::anyhow!("{e}"))?;
             let pid = browser.pid();
             std::fs::write(&pid_path, pid.to_string())?;

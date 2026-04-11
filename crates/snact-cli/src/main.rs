@@ -149,6 +149,13 @@ enum Commands {
         condition: String,
     },
 
+    /// Execute JavaScript on the current page and return the result.
+    /// Use for extracting data that snap/read can't capture (e.g. product cards on Amazon).
+    Eval {
+        /// JavaScript expression to evaluate
+        expression: String,
+    },
+
     /// Session management
     Session {
         #[command(subcommand)]
@@ -225,6 +232,11 @@ enum BrowserAction {
         /// Run in background (detach immediately, use "browser stop" to terminate)
         #[arg(long)]
         background: bool,
+
+        /// Browser profile name [default: "default"]. Persistent profiles keep
+        /// cookies and login state between sessions, reducing bot detection.
+        #[arg(long)]
+        profile: Option<String>,
     },
     /// Stop a running Chrome instance
     Stop,
@@ -448,6 +460,9 @@ async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
             }
             cmd::action::run_wait(cli.port, &condition, fmt).await?;
         }
+        Commands::Eval { expression } => {
+            cmd::action::run_eval(cli.port, &expression, fmt).await?;
+        }
         Commands::Session { action } => match action {
             SessionAction::Save { name } => {
                 cmd::session::run_save(cli.port, &name, fmt).await?;
@@ -483,8 +498,9 @@ async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
             BrowserAction::Launch {
                 headless,
                 background,
+                profile,
             } => {
-                cmd::browser::run_launch(cli.port, headless, background, fmt)?;
+                cmd::browser::run_launch(cli.port, headless, background, profile.as_deref(), fmt)?;
             }
             BrowserAction::Stop => {
                 cmd::browser::run_stop(cli.port, fmt)?;

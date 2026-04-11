@@ -5,7 +5,13 @@ fn pid_file(port: u16) -> PathBuf {
     snact_core::data_dir().join(format!("chrome-{port}.pid"))
 }
 
-pub fn run_launch(port: u16, headless: bool, background: bool, fmt: &str) -> Result<()> {
+pub fn run_launch(
+    port: u16,
+    headless: bool,
+    background: bool,
+    profile: Option<&str>,
+    fmt: &str,
+) -> Result<()> {
     // Check if already running
     if let Some(pid) = read_pid(port) {
         if is_process_alive(pid) {
@@ -23,7 +29,10 @@ pub fn run_launch(port: u16, headless: bool, background: bool, fmt: &str) -> Res
         std::fs::remove_file(pid_file(port)).ok();
     }
 
-    let browser = snact_cdp::ManagedBrowser::launch(port, headless)?;
+    // Persistent profile directory — keeps cookies/state between sessions
+    let profile_name = profile.unwrap_or("default");
+    let profile_dir = snact_core::data_dir().join("profiles").join(profile_name);
+    let browser = snact_cdp::ManagedBrowser::launch(port, headless, &profile_dir)?;
     let pid = browser.pid();
 
     // Save PID to file

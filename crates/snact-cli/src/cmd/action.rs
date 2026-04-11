@@ -193,3 +193,32 @@ pub async fn run_wait(port: u16, condition: &str, fmt: &str) -> Result<()> {
     ok(fmt, "wait", None);
     Ok(())
 }
+
+pub async fn run_eval(port: u16, expression: &str, fmt: &str) -> Result<()> {
+    let transport = snact_cdp::connect(port).await?;
+    let result = transport
+        .send(&snact_cdp::commands::RuntimeEvaluate {
+            expression: expression.to_string(),
+            return_by_value: Some(true),
+            await_promise: Some(true),
+            context_id: None,
+        })
+        .await?;
+
+    if let Some(exc) = result.exception_details {
+        anyhow::bail!("JavaScript error: {:?}", exc);
+    }
+
+    let value = result.result.value.unwrap_or(serde_json::Value::Null);
+
+    if fmt == "json" {
+        println!("{}", serde_json::to_string(&value)?);
+    } else {
+        match &value {
+            serde_json::Value::String(s) => println!("{s}"),
+            serde_json::Value::Null => println!("undefined"),
+            other => println!("{}", serde_json::to_string_pretty(other)?),
+        }
+    }
+    Ok(())
+}

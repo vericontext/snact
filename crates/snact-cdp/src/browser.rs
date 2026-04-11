@@ -119,25 +119,21 @@ pub struct ManagedBrowser {
 
 impl ManagedBrowser {
     /// Launch Chrome with remote debugging enabled.
-    pub fn launch(port: u16, headless: bool) -> CdpResult<Self> {
+    /// `user_data_dir` controls the Chrome profile directory.
+    /// Persistent profiles keep cookies/history between sessions, reducing bot detection.
+    pub fn launch(port: u16, headless: bool, user_data_dir: &std::path::Path) -> CdpResult<Self> {
         let chrome_path = find_chrome()?;
+        std::fs::create_dir_all(user_data_dir).ok();
 
-        // Use a separate user-data-dir so Chrome launches as an independent instance
-        // (without this, Chrome merges into an existing instance and ignores --remote-debugging-port)
-        let user_data_dir = std::env::temp_dir().join(format!("snact-chrome-{port}"));
-        std::fs::create_dir_all(&user_data_dir).ok();
-
+        // Minimal flags only — avoid bot-detection signals.
+        // Removed: --disable-background-networking, --disable-sync, --disable-translate,
+        //          --metrics-recording-only, --safebrowsing-disable-auto-update
+        // These flags are common bot fingerprints that trigger CAPTCHA on Amazon etc.
         let mut args = vec![
             format!("--remote-debugging-port={port}"),
             format!("--user-data-dir={}", user_data_dir.display()),
             "--no-first-run".to_string(),
             "--no-default-browser-check".to_string(),
-            "--disable-background-networking".to_string(),
-            "--disable-sync".to_string(),
-            "--disable-translate".to_string(),
-            "--metrics-recording-only".to_string(),
-            "--safebrowsing-disable-auto-update".to_string(),
-            "--lang=en-US".to_string(),
         ];
 
         if headless {
