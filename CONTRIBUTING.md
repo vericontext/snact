@@ -5,6 +5,7 @@
 ```bash
 git clone git@github.com:vericontext/snact.git
 cd snact
+./scripts/setup-hooks.sh   # install git hooks (auto version bump)
 cargo build
 ```
 
@@ -56,7 +57,7 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 - `test:` — adding or updating tests
 - `chore:` — build, CI, tooling changes
 
-The release workflow auto-bumps versions based on commit prefixes.
+A `pre-push` git hook automatically bumps the version and creates a tag based on commit prefixes. Run `./scripts/setup-hooks.sh` to install it.
 
 ## Adding a new command
 
