@@ -16,7 +16,7 @@ pub fn compress(elements: Vec<RawElement>, context: Option<&PageContext>) -> (St
         // Insert section heading if it changed
         if let Some(ctx) = context {
             if let Some((level, heading_text)) = ctx.heading_for(el.node_index) {
-                let is_new = current_heading.map_or(true, |cur| cur != heading_text);
+                let is_new = current_heading != Some(heading_text);
                 if is_new {
                     current_heading = Some(heading_text);
                     let hashes = "#".repeat(level as usize);
