@@ -40,35 +40,45 @@ allowed-tools: Bash
 16-inch — From $2699 or $224.91/mo.
 ```
 
-**Typical flow:** `snap` → understand structure → `read --focus="main"` → get details → `click/fill` → act.
+**Typical flow:** `snap` → understand structure → `click/fill` (auto re-snap included) → done.
+If snap doesn't show enough content, use `read --focus="main"` or `eval` for custom JS extraction.
 
 ## Quick Reference
 
 ```bash
-snact browser launch --background        # start Chrome
-snact snap <url> [--focus "selector"]    # page structure + @eN refs
+snact browser launch --background        # start Chrome (persistent profile)
+snact snap <url> [--focus "selector"]    # page structure + @eN refs + section summaries
 snact read [url] [--focus "selector"]    # page text content as markdown
-snact click @e1                          # click element
-snact fill @e1 "value"                   # set input value
-snact type @e1 "text"                    # type character by character
-snact select @e1 "option"               # select dropdown option
-snact scroll down [--amount 500]         # scroll page
+snact click @e1                          # click (returns updated snap automatically)
+snact fill @e1 "value"                   # set input value (returns updated snap)
+snact type @e1 "text"                    # type character by character (returns updated snap)
+snact select @e1 "option"               # select dropdown option (returns updated snap)
+snact scroll down [--amount 500]         # scroll page (returns updated snap)
+snact eval "document.title"              # execute JavaScript on the page
 snact screenshot [--file path.png]       # capture screenshot
 snact wait navigation|<selector>|<ms>    # wait for condition
 snact browser stop                       # stop Chrome
 ```
 
+## Key flags
+
+- `--no-snap` on click/fill/type/select/scroll — skip automatic re-snap (for record/replay)
+- `--focus "selector"` on snap/read — limit scope to a page section
+- `--profile name` on browser launch — use a named persistent profile
+
 ## Workflow: Information Extraction
 
 ```bash
 snact browser launch --background
-snact snap https://example.com           # 1. See structure + elements
-snact read --focus="main"                # 2. Read the main content
-# Now you have both structure and content — decide next action
-snact click @e5                          # 3. Navigate deeper if needed
-snact snap                               # 4. Re-snap after navigation
-snact read --focus="main"                # 5. Read new page content
+snact snap https://example.com           # 1. See structure + elements + section summaries
+snact click @e5                          # 2. Navigate (response includes new snap)
+# No need for manual re-snap — click response already has it
 snact browser stop
+```
+
+If snap doesn't capture enough content (e.g. dynamic product cards):
+```bash
+snact eval "JSON.stringify(Array.from(document.querySelectorAll('.product')).map(p => p.innerText))"
 ```
 
 ## Workflow: Form Interaction
@@ -76,11 +86,10 @@ snact browser stop
 ```bash
 snact browser launch --background
 snact snap https://example.com/login     # 1. See form elements
-snact fill @e2 "username"               # 2. Fill fields
-snact fill @e3 "password"
-snact click @e4                          # 3. Submit
-snact wait navigation                    # 4. Wait for page change
-snact snap                               # 5. Re-snap to verify
+snact fill @e2 "username"               # 2. Fill (response includes updated snap)
+snact fill @e3 "password"               # 3. Fill (response includes updated snap)
+snact click @e4                          # 4. Submit (response includes new page snap)
+# No need for manual snap or wait — auto re-snap handles navigation
 snact browser stop
 ```
 

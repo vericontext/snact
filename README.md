@@ -78,6 +78,9 @@ snact --version
 
 ```bash
 snact browser launch --background
+# Uses persistent profile (~/.local/share/snact/profiles/default/)
+# Cookies and login state persist between sessions
+# Use --profile=work for separate profiles
 ```
 
 ### 2. Snap &mdash; structure + content + elements
@@ -132,6 +135,17 @@ Learn more
 
 `snap` gives you structure + elements + summaries. `read` gives you full text when you need deeper content.
 
+### 4b. Eval &mdash; custom JavaScript extraction
+
+When snap/read can't capture dynamic content (e.g. Amazon product cards):
+
+```bash
+snact eval "JSON.stringify(Array.from(document.querySelectorAll('.product')).map(p => ({
+  title: p.querySelector('h2')?.textContent,
+  price: p.querySelector('.price')?.textContent
+})))"
+```
+
 ### 5. Session &mdash; persist browser state
 
 ```bash
@@ -165,11 +179,12 @@ snact replay login-flow
 | `select <@ref> <value>` | Select dropdown option (returns updated snap) |
 | `scroll [direction]` | Scroll page (returns updated snap) |
 | `screenshot [--file]` | Capture page as PNG |
+| `eval <expression>` | Execute JavaScript on the page (for custom data extraction) |
 | `wait <condition>` | Wait for navigation, CSS selector, or timeout (ms) |
 | `session save\|load\|list\|delete` | Manage browser sessions |
 | `record start\|stop\|list\|delete` | Record command sequences |
 | `replay <name>` | Replay a recorded workflow |
-| `browser launch\|stop\|status` | Manage Chrome instance |
+| `browser launch [--profile]` | Manage Chrome (persistent profile by default) |
 | `schema [command]` | JSON Schema introspection |
 | `mcp` | Start MCP server (JSON-RPC over stdio) |
 
@@ -180,6 +195,7 @@ snact replay login-flow
 --output <FMT>    Output format: text, json, ndjson [default: text]
 --dry-run         Preview action without executing
 --no-snap         Skip automatic re-snap after actions
+--profile <NAME>  Browser profile name [default: "default"] (browser launch)
 --lang <LANG>     Accept-Language header [default: en-US]
 --focus <SEL>     CSS selector to limit scope (snap/read)
 --verbose         Debug logging
