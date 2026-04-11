@@ -26,12 +26,25 @@ const INTERACTABLE_TAGS: &[&str] = &[
 ];
 
 /// Filter raw elements to only those that are interactable and visible.
-pub fn filter_elements(elements: Vec<RawElement>, focus_selector: Option<&str>) -> Vec<RawElement> {
-    let _ = focus_selector; // TODO: implement focus filtering via CDP DOM.querySelector
-
+/// If `focus_bounds` is provided ([x, y, w, h]), only elements whose center
+/// falls within those bounds are included.
+pub fn filter_elements(
+    elements: Vec<RawElement>,
+    focus_bounds: Option<[f64; 4]>,
+) -> Vec<RawElement> {
     elements
         .into_iter()
         .filter(|el| {
+            // Focus scope: element center must be within focus bounds
+            if let (Some(bounds), Some(fb)) = (el.bounds, focus_bounds) {
+                let cx = bounds[0] + bounds[2] / 2.0;
+                let cy = bounds[1] + bounds[3] / 2.0;
+                let in_focus =
+                    cx >= fb[0] && cx <= fb[0] + fb[2] && cy >= fb[1] && cy <= fb[1] + fb[3];
+                if !in_focus {
+                    return false;
+                }
+            }
             // Must be visible
             if !el.is_visible {
                 return false;

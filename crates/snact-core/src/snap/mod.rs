@@ -2,6 +2,7 @@ pub mod compressor;
 pub mod extractor;
 pub mod filter;
 
+use snact_cdp::commands::{DomGetBoxModel, DomGetDocument, DomQuerySelectorAll};
 use snact_cdp::CdpTransport;
 
 use crate::element_map::ElementMap;
@@ -55,8 +56,17 @@ pub async fn execute(
     // Extract elements
     let raw_elements = extractor::extract(transport).await?;
 
-    // Filter to interactable elements
-    let filtered = filter::filter_elements(raw_elements, focus);
+    // Resolve focus bounds if --focus was provided
+    let focus_bounds = if let Some(selector) = focus {
+        resolve_focus_bounds(transport, selector)
+            .await
+            .unwrap_or(None)
+    } else {
+        None
+    };
+
+    // Filter to interactable elements (optionally constrained to focus bounds)
+    let filtered = filter::filter_elements(raw_elements, focus_bounds);
 
     // Compress into output format and build element map
     let (output, element_map) = compressor::compress(filtered);
@@ -72,4 +82,52 @@ pub async fn execute(
         element_map,
         element_count,
     })
+}
+
+/// Resolve the bounding box [x, y, w, h] of the first element matching `selector`.
+/// Returns None if the selector matches nothing or has no layout.
+async fn resolve_focus_bounds(
+    transport: &CdpTransport,
+    selector: &str,
+) -> Result<Option<[f64; 4]>, snact_cdp::CdpTransportError> {
+    let doc = transport
+        .send(&DomGetDocument {
+            depth: Some(0),
+            pierce: None,
+        })
+        .await?;
+    let root_id = doc.root.node_id;
+
+    let result = transport
+        .send(&DomQuerySelectorAll {
+            node_id: root_id,
+            selector: selector.to_string(),
+        })
+        .await?;
+
+    let Some(&node_id) = result.node_ids.first() else {
+        return Ok(None);
+    };
+
+    let box_model = transport
+        .send(&DomGetBoxModel {
+            node_id: Some(node_id),
+            backend_node_id: None,
+        })
+        .await?;
+
+    let content = &box_model.model.content;
+    if content.len() < 8 {
+        return Ok(None);
+    }
+
+    // content quad: [x0,y0, x1,y1, x2,y2, x3,y3]
+    let xs: Vec<f64> = content.iter().step_by(2).copied().collect();
+    let ys: Vec<f64> = content.iter().skip(1).step_by(2).copied().collect();
+    let x_min = xs.iter().cloned().fold(f64::INFINITY, f64::min);
+    let y_min = ys.iter().cloned().fold(f64::INFINITY, f64::min);
+    let x_max = xs.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+    let y_max = ys.iter().cloned().fold(f64::NEG_INFINITY, f64::max);
+
+    Ok(Some([x_min, y_min, x_max - x_min, y_max - y_min]))
 }

@@ -66,7 +66,7 @@ impl CdpTransport {
         let (ws_write, ws_read) = ws_stream.split();
         let pending: Arc<Mutex<HashMap<u64, PendingCommand>>> =
             Arc::new(Mutex::new(HashMap::new()));
-        let (event_tx, _) = broadcast::channel(256);
+        let (event_tx, _) = broadcast::channel(4096);
         let (outgoing_tx, mut outgoing_rx) = mpsc::channel::<Message>(64);
 
         // Writer task: forwards messages from the mpsc channel to the WebSocket.
@@ -189,7 +189,9 @@ impl CdpTransport {
                 match rx.recv().await {
                     Ok(event) if event.method == method_owned => return Ok(event),
                     Ok(_) => continue,
-                    Err(_) => {
+                    // Lagged means we missed some events but channel is still open — keep going
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(tokio::sync::broadcast::error::RecvError::Closed) => {
                         return Err(crate::error::CdpTransportError::ConnectionFailed(
                             "Event channel closed".into(),
                         ))
