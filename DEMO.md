@@ -189,64 +189,61 @@ claude
 
 ---
 
-### 시나리오: 매일 타임시트 제출이 귀찮다
+### 시나리오: 매일 아침 GitHub PR 리뷰 현황 파악
 
-회사 타임시트 시스템에 매일 같은 폼을 채워야 한다고 가정합니다.  
-브라우저에서 타임시트 사이트에 직접 로그인한 뒤:
+브라우저에서 GitHub에 로그인한 뒤:
 
 **Day 1 — 한 번만 가르친다:**
 
 ```
-Use snact to save my current browser session as "work".
-Then fill in today's timesheet on the current page:
-8 hours on "Platform", category "Development".
-After submitting, record the whole thing as "timesheet".
+Use snact to save my current GitHub session,
+then record checking my PR review queue as "pr-check".
 ```
 
-Claude Code가 폼을 찾아 채우고, 제출하고, 전체 과정을 녹화합니다.
+Claude Code가 현재 로그인 상태 저장 → `github.com/pulls` 이동 → 목록 snap → 녹화 완료.
 
 ```
-Done. Tomorrow just say "submit timesheet".
+Done. Say "check PRs" any time.
 ```
 
 ---
 
-**Day 2, 3, 4 ... — 두 글자면 끝:**
+**Day 2, 3 ... — 한 마디면 끝:**
 
 ```
-submit timesheet
+check PRs
 ```
 
 ```bash
 # Claude Code가 실행하는 전부:
-snact session load work
-snact replay timesheet
+snact session load github
+snact replay pr-check
 ```
 
 ```
-Done. 8h submitted for today.
+2 PRs need your review:
+- #142 "Add MCP server" — requested 3h ago
+- #138 "Fix CDP connection drop" — requested yesterday
 ```
 
-**LLM 추론: 0턴. 토큰: 0. 시간: 3초.**
-
-매일 타임시트 사이트에 들어가서 폼 클릭하던 2분이 사라집니다.  
-한 달이면 **40분 절약, LLM 비용 0**.
+**LLM 추론: 0턴. 토큰: 0. 시간: 2초.**
 
 ---
 
-### 더 나아가: 완전 자동화
+### 더 나아가: 아침마다 자동으로
 
 ```
-Write a cron job that submits my timesheet automatically at 6pm every weekday.
+Write a cron script that runs pr-check every morning at 9am
+and prints the result to my terminal.
 ```
 
 ```bash
 # crontab -e
-0 18 * * 1-5 snact session load work && snact replay timesheet
+0 9 * * 1-5 snact session load github && snact replay pr-check
 ```
 
-이제 타임시트를 **영원히 신경 쓰지 않아도 됩니다.**  
-Claude Code도, API 키도, 토큰도 필요 없습니다.
+GitHub 탭을 열지 않아도 PR 현황이 터미널에 표시됩니다.  
+**Claude Code도, API 키도, 토큰도 필요 없습니다.**
 
 ---
 
