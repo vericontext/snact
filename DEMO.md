@@ -3,261 +3,114 @@
 ## 0. Install
 
 ```bash
-mkdir -p ~/dev/personal/playground/snact-demo
-cd ~/dev/personal/playground/snact-demo
-
-# Private repo — requires GitHub token
-curl -fsSL -H "Authorization: token $(gh auth token)" \
-  https://raw.githubusercontent.com/vericontext/snact/main/install.sh | bash
-
+curl -fsSL https://raw.githubusercontent.com/vericontext/snact/main/install.sh | bash
 snact --version
 ```
-
-> If repo is public: `curl -fsSL https://raw.githubusercontent.com/vericontext/snact/main/install.sh | bash`
 
 ---
 
 ## 1. Launch Chrome
 
 ```bash
-# Launch in background — terminal stays free (recommended)
 snact browser launch --background
-
-# Launch with visible UI — blocks terminal (Ctrl+C to stop)
-snact browser launch
-
-# Headless mode
-snact browser launch --headless --background
-
-# Check status / stop
-snact browser status
-snact browser stop
-```
-
-> Connects via CDP on port 9222.
-
----
-
-## 2. Two Commands, Any Task
-
-snact는 두 가지 읽기 모드를 제공합니다:
-
-| 명령 | 용도 | 출력 |
-|------|------|------|
-| `snap` | 클릭/입력할 요소 찾기 | `@e1 [button] "Sign In"` |
-| `read` | 페이지 내용 파악하기 | 마크다운 구조화 텍스트 |
-
-```bash
-# 인터랙티브 요소 추출 (액션 전에 사용)
-snact snap https://example.com
-# @e1 [link] "More information..."
-# (2 elements) ← vs Playwright MCP ~114K tokens
-
-# 페이지 내용 읽기 (스크린샷 없이)
-snact read https://example.com
-# # Example Domain
-# This domain is for use in documentation examples.
-# Learn more
-
-# 특정 영역만 읽기
-snact read https://github.com/pulls --focus="main"
-# ## Pull requests
-# - #142 Add MCP server — needs review
-# - #138 Fix CDP connection drop — needs review
-
-# JSON 출력 (파이프 모드)
-snact snap https://example.com --output=json
-snact read https://example.com --output=json
 ```
 
 ---
 
-## 3. Snap + Act Loop
+## 2. Claude Code + snact — Live Demo
 
-### 3-1. Basic Click
-
-```bash
-snact snap https://example.com
-# See @e1 [link] "More information..." then:
-snact click @e1
-```
-
-### 3-2. Form Input (GitHub Login Page)
-
-```bash
-snact snap https://github.com/login
-
-# Find username/password field @eN numbers in output:
-snact fill @eN "your-username"
-snact fill @eM "your-password"
-
-# Click Sign In button
-snact click @eK
-
-# Snap to verify result
-snact snap https://github.com
-```
-
-### 3-3. Search Flow
-
-```bash
-snact snap https://www.google.com
-
-# Find search input @eN then:
-snact fill @eN "snact browser automation"
-snact click @eM   # search button
-
-# Snap the results page
-snact snap
-```
-
----
-
-## 4. Dry-Run (Safe Preview)
-
-```bash
-# Preview actions without executing
-snact click @e1 --dry-run
-# {"action":"click","args":{"ref":"@e1"},"dry_run":true}
-
-snact fill @e3 "test" --dry-run
-# {"action":"fill","args":{"ref":"@e3","value":"test"},"dry_run":true}
-```
-
----
-
-## 5. Session Management
-
-```bash
-# Save session after login
-snact session save github
-
-# List saved sessions
-snact session list
-
-# Restore session after browser restart
-snact session load github
-
-# Verify login state persisted
-snact snap https://github.com
-```
-
----
-
-## 6. Record & Replay
-
-```bash
-# Start recording
-snact record start "search-demo"
-
-# Execute a sequence of commands
-snact snap https://www.google.com
-snact fill @eN "snact"
-snact click @eM
-
-# Stop recording
-snact record stop
-
-# List recordings
-snact record list
-
-# Replay the workflow
-snact replay search-demo
-
-# Slow replay (for demo presentation)
-snact replay search-demo --speed=0.5
-```
-
----
-
-## 7. AI Agent Integration (Pipe Mode)
-
-```bash
-# Piped output auto-detects JSON
-snact snap https://example.com | jq '.elements[] | .ref + " " + .role'
-
-# Use in scripts
-ELEMENTS=$(snact snap https://example.com --output=json)
-echo "$ELEMENTS" | jq '.count'
-```
-
----
-
-## 8. Screenshot
-
-```bash
-snact screenshot --file=./demo-capture.png
-# Captures the current page
-```
-
----
-
-## 9. Claude Code + snact — Killer Demo
-
-snact의 핵심: **처음 한 번만 LLM, 이후는 영구히 무료**.
+### Demo 1: 실제 정보 조회 (One-shot)
 
 ```bash
 snact browser launch --background
 claude
 ```
 
+프롬프트:
+
+```
+Use snact to find the current price of the MacBook Pro 14" M4 Pro
+on apple.com and tell me what storage options are available.
+```
+
+Claude Code가 하는 일:
+
+```bash
+snact snap https://www.apple.com/shop/buy-mac/macbook-pro
+# # Buy MacBook Pro
+# ## Model. Choose your size.
+# @e35 [input:radio] ...
+# ## Chip. Choose from these powerful options.
+# @e40 [link] ...
+
+snact read --focus=".as-productinfosection"
+# ## Model. Choose your size.
+# 14-inch — From $1699 or $141.58/mo.
+# 16-inch — From $2699 or $224.91/mo.
+# ## Chip. Choose from these powerful options.
+# M5 Pro — 12-core CPU, 16-core GPU
+# M5 Max — 16-core CPU, 40-core GPU
+```
+
+**snap 한 번에 페이지 구조를 파악하고, read 한 번에 가격/옵션을 읽어옵니다.**  
+Playwright MCP라면 매 턴 전체 DOM(수만 토큰)을 보내야 할 것을 snact는 수백 토큰으로 해결.
+
 ---
 
-### 시나리오: 매일 아침 GitHub PR 리뷰 현황 파악
+### Demo 2: 더 복잡한 리서치 — 여러 사이트 비교
 
-브라우저에서 GitHub에 로그인한 뒤:
+```
+Use snact to compare the MacBook Pro 14" M4 Pro prices:
+1. apple.com (official)
+2. bestbuy.com
+3. amazon.com
+Make a comparison table with price, storage options, and availability.
+```
+
+이 태스크는 3개 사이트를 방문해서 각각 snap → read → 정보 추출.  
+**턴 수가 10+ 되면서 토큰 절약이 누적됩니다:**
+
+| | Playwright MCP | snact |
+|--|--|--|
+| 턴당 전송 토큰 | ~30K-80K (전체 DOM) | ~1-3K (snap/read) |
+| 10턴 누적 | ~300K-800K | ~10-30K |
+| **비용 차이** | **~$1-2** | **~$0.03-0.10** |
+
+---
+
+### Demo 3: 반복 자동화 — 한 번 가르치면 영구 무료
 
 **Day 1 — 한 번만 가르친다:**
 
 ```
-Use snact to save my current GitHub session,
-then record checking my PR review queue as "pr-check".
+Save my current browser session as "apple".
+Then record checking MacBook Pro pricing as "mbp-price".
 ```
 
-Claude Code가 현재 로그인 상태 저장 → `github.com/pulls` 이동 → 목록 snap → 녹화 완료.
+Claude Code가 세션 저장 → apple.com 이동 → snap + read → 녹화 완료.
 
 ```
-Done. Say "check PRs" any time.
+Done. Say "check mbp price" any time.
 ```
 
----
-
-**Day 2, 3 ... — 한 마디면 끝:**
+**Day 2, 3, 4 ... — 토큰 0:**
 
 ```
-check PRs
+check mbp price
 ```
 
 ```bash
 # Claude Code가 실행하는 전부:
-snact session load github
-snact replay pr-check
+snact session load apple
+snact replay mbp-price
 ```
 
 ```
-2 PRs need your review:
-- #142 "Add MCP server" — requested 3h ago
-- #138 "Fix CDP connection drop" — requested yesterday
+MacBook Pro 14" M4 Pro — $1,999
+Storage: 512GB / 1TB / 2TB / 4TB
 ```
 
 **LLM 추론: 0턴. 토큰: 0. 시간: 2초.**
-
----
-
-### 더 나아가: 아침마다 자동으로
-
-```
-Write a cron script that runs pr-check every morning at 9am
-and prints the result to my terminal.
-```
-
-```bash
-# crontab -e
-0 9 * * 1-5 snact session load github && snact replay pr-check
-```
-
-GitHub 탭을 열지 않아도 PR 현황이 터미널에 표시됩니다.  
-**Claude Code도, API 키도, 토큰도 필요 없습니다.**
 
 ---
 
@@ -265,15 +118,97 @@ GitHub 탭을 열지 않아도 PR 현황이 터미널에 표시됩니다.
 
 | | Playwright MCP | snact |
 |--|--|--|
-| 첫 실행 | LLM 비용 | LLM 비용 |
-| **매일 실행** | **매번 LLM 비용** | **토큰 0** |
+| 1회성 간단 (3-5턴) | ~150K tokens | **~15K tokens** |
+| 1회성 복잡 (10+턴) | ~500K+ tokens | **~30K tokens** |
+| **반복 실행** | **매번 LLM 비용** | **토큰 0** |
 | cron 자동화 | LLM API 필요 | 쉘 1줄로 가능 |
-| 로그인 유지 | 매번 재인증 | `session load` 1줄 |
-| 복잡한 페이지 읽기 | 전체 DOM 전송 | `read --focus` 로 해당 섹션만 |
+| 세션 유지 | 매번 재인증 | `session load` 1줄 |
+| 페이지 이해 | LLM이 raw DOM 파싱 | **섹션 헤딩** 포함 |
 
 ---
 
-### Cleanup
+## 3. 개별 기능 데모
+
+위 통합 데모 후, 개별 기능을 보여줄 수 있습니다.
+
+### snap — 구조 + 액션 요소
+
+```bash
+snact snap https://github.com/trending
+# # Trending
+# ## NousResearch / hermes-agent
+# @e28 [link] href="/NousResearch/hermes-agent"
+# ## microsoft / markitdown
+# @e37 [link] href="/microsoft/markitdown"
+```
+
+섹션 헤딩으로 그루핑되어 LLM이 한눈에 구조를 파악합니다.
+
+### read — 내용 파악
+
+```bash
+snact read https://news.ycombinator.com --focus="table.itemlist"
+# 페이지 텍스트를 마크다운으로 추출 (스크린샷 불필요)
+```
+
+### click / fill — 요소 조작
+
+```bash
+snact snap https://example.com
+snact click @e1
+
+snact snap https://github.com/login
+snact fill @e2 "username"
+snact fill @e3 "password"
+snact click @e5
+```
+
+### --focus — 범위 제한
+
+```bash
+# 전체 페이지: 1774 elements (Wikipedia)
+snact snap "https://en.wikipedia.org/wiki/Rust_(programming_language)"
+
+# 본문만: ~300 elements
+snact snap "https://en.wikipedia.org/wiki/Rust_(programming_language)" --focus="#mw-content-text"
+```
+
+### --dry-run — 안전 미리보기
+
+```bash
+snact click @e1 --dry-run
+# {"action":"click","args":{"ref":"@e1"},"dry_run":true}
+```
+
+### session — 세션 저장/복원
+
+```bash
+snact session save github
+snact session list
+snact session load github
+```
+
+### record/replay — 워크플로우 녹화
+
+```bash
+snact record start "my-workflow"
+# ... 일련의 snap/click/fill 명령 ...
+snact record stop
+
+snact replay my-workflow          # 즉시 재생
+snact replay my-workflow --speed=0.5  # 느린 재생 (데모용)
+```
+
+### schema — JSON Schema 인트로스펙션
+
+```bash
+snact schema          # 전체 스키마
+snact schema snap     # 특정 커맨드 스키마
+```
+
+---
+
+## 4. Cleanup
 
 ```bash
 snact browser stop
@@ -285,16 +220,12 @@ snact browser stop
 
 ```
 Install
-  → snact browser launch --background    # Chrome up, terminal free
-  → snact snap (token efficiency demo)   # vs Playwright ~114K
-  → snact read --focus="main"            # read content without screenshot
-  → snact click/fill (snap+act loop)     # @eN refs
-  → snact --dry-run (safety demo)        # preview before act
-  → snact session save/load              # state persistence
-  → snact record/replay                  # zero-LLM replay
-  → snact schema                         # introspection
-  → Claude Code natural language demo    # ← the wow moment
-  → snact browser stop                   # clean up
+  → snact browser launch --background
+  → Demo 1: MacBook Pro 가격 조회          # snap + read 위력
+  → Demo 2: 멀티사이트 비교 (optional)     # 토큰 절약 누적
+  → Demo 3: record/replay 자동화           # 킬러 피처
+  → 개별 기능 (필요 시)
+  → snact browser stop
 ```
 
 ---
@@ -302,16 +233,13 @@ Install
 ## Troubleshooting
 
 ```bash
-# Check Chrome status
-snact browser status
+snact browser status           # Chrome 상태 확인
+snact browser stop             # 강제 종료
 
-# Force stop if stuck
-snact browser stop
-
-# If connection still fails — launch Chrome manually
+# Chrome 수동 실행 (연결 실패 시)
 /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
   --remote-debugging-port=9222 --no-first-run --no-default-browser-check
 
-# Change port
+# 포트 변경
 snact --port=9333 snap https://example.com
 ```
