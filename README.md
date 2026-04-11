@@ -1,134 +1,132 @@
-# snact
+<p align="center">
+  <strong>snact</strong><br>
+  <em>AI agent-optimized browser CLI &mdash; snap + act</em>
+</p>
 
-**AI agent-optimized browser CLI** — snap + act
+<p align="center">
+  <a href="https://github.com/vericontext/snact/actions/workflows/ci.yml"><img src="https://github.com/vericontext/snact/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/vericontext/snact/releases/latest"><img src="https://img.shields.io/github/v/release/vericontext/snact" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg" alt="License"></a>
+</p>
 
-snact lets AI agents control browsers with extreme token efficiency. Instead of dumping entire accessibility trees (~3000 tokens), snact extracts only interactable elements and outputs them in a compressed format (~30 tokens).
+---
+
+snact lets AI agents control browsers with extreme token efficiency. One `snap` returns the page structure and every actionable element in a format an LLM can parse in a single turn.
 
 ```
-$ snact snap https://news.ycombinator.com --focus "nav"
-@e1 [link] "Hacker News" href="https://news.ycombinator.com"
-@e2 [link] "new" href="newest"
-@e3 [link] "past" href="front"
-@e4 [link] "comments" href="newcomments"
-@e5 [link] "ask" href="ask"
-@e6 [link] "show" href="show"
-@e7 [link] "jobs" href="jobs"
-@e8 [link] "submit" href="submit"
-(8 elements)
+$ snact snap https://github.com/trending
 
-$ snact click @e2
-ok
+# Trending
+@e19 [link] href="/trending"
+@e20 [link] href="/trending/developers"
 
-$ snact fill @e1 "user@example.com"
-ok
+## NousResearch / hermes-agent
+@e28 [link] href="/NousResearch/hermes-agent"
+@e29 [link] href="/NousResearch/hermes-agent/stargazers"
+
+## microsoft / markitdown
+@e37 [link] href="/microsoft/markitdown"
+@e38 [link] href="/microsoft/markitdown/stargazers"
+
+$ snact click @e28    # navigate to repo
+$ snact read --focus="main"   # read page content as markdown
 ```
 
 ## Why snact?
 
-| | Playwright MCP | agent-browser | snact |
-|---|---|---|---|
-| Tokens per page | ~3000 | ~500 | **~30** (with `--focus`) |
-| Tool schemas overhead | 25 tools/request | Low | **Zero** (CLI) |
-| Repeated task cost | Full LLM call each time | Full LLM call | **0** (workflow replay) |
-| Shadow DOM | Limited | Limited | **Full** (CDP direct) |
-| Install | npm + browser | cargo | **Single binary** |
+|  | Playwright MCP | snact |
+|--|----------------|-------|
+| **Tokens per page** | ~3,000 (full accessibility tree) | **~30** with `--focus` |
+| **Repeated task cost** | Full LLM call each time | **0** (workflow replay) |
+| **Page understanding** | Requires LLM to parse raw DOM | **Section headings** included in snap |
+| **Session persistence** | None (re-auth every time) | `session save/load` |
+| **Automation** | Requires LLM API | `cron + replay` (zero dependencies) |
+| **Shadow DOM** | Limited | **Full** (CDP direct) |
+| **Install** | npm + browser binary | **Single binary** |
+
+### The core insight
+
+Most browser automation tools send the entire page state to the LLM on every turn. snact sends only what matters: interactable elements grouped by page sections, with just enough context for the LLM to decide what to do next.
+
+For repeated workflows, snact goes further: **record once, replay forever** with zero LLM cost.
 
 ## Installation
 
-### One-line install (macOS / Linux)
-
 ```bash
+# One-line install (macOS / Linux)
 curl -fsSL https://raw.githubusercontent.com/vericontext/snact/main/install.sh | bash
-```
 
-Installs a pre-built binary to `/usr/local/bin/snact`. Supports macOS (arm64/x86_64) and Linux (arm64/x86_64).
-
-### Specific version
-
-```bash
-SNACT_VERSION=v0.1.0 curl -fsSL https://raw.githubusercontent.com/vericontext/snact/main/install.sh | bash
-```
-
-### From source
-
-```bash
-# Requires Rust 1.75+
+# From source
 cargo install --path crates/snact-cli
+
+# Verify
+snact --version
 ```
 
-### Build from repo
+## Quick start
+
+### 1. Launch Chrome
 
 ```bash
-git clone https://github.com/vericontext/snact.git
-cd snact
-cargo build --release
-# Binary at ./target/release/snact
+snact browser launch --background
 ```
 
-## Quick Start
-
-### 1. Start Chrome with remote debugging
+### 2. Snap &mdash; see what's on the page
 
 ```bash
-# Option A: Let snact launch it
-snact browser launch --headless
-
-# Option B: Launch manually
-google-chrome --headless=new --remote-debugging-port=9222
-```
-
-### 2. Snap — extract interactable elements
-
-```bash
-# Full page scan
 snact snap https://example.com
-
-# Focus on a specific area (minimizes tokens)
-snact snap https://example.com --focus "form.login"
 ```
 
-Output format — one element per line, minimal tokens:
-
 ```
-@e1 [button] "Sign In"
-@e2 [input:email] "Email" placeholder="user@example.com"
-@e3 [input:password] "Password"
-@e4 [link] "Forgot password?" href="/reset"
-@e5 [checkbox] "Remember me"
+# Example Domain
+@e1 [link] href="https://iana.org/domains/example"
+(1 elements)
 ```
 
-### 3. Act — execute actions using element references
+Elements are grouped by section headings from the page. Each `@eN` reference is stable until the next snap.
+
+### 3. Read &mdash; understand page content
+
+```bash
+snact read https://example.com
+```
+
+```
+# Example Domain
+This domain is for use in documentation examples.
+Learn more
+```
+
+`snap` tells you what you can **do**. `read` tells you what you can **see**. Together they replace screenshot loops.
+
+### 4. Act &mdash; interact with elements
 
 ```bash
 snact fill @e2 "user@example.com"
-snact fill @e3 "mypassword"
+snact fill @e3 "password"
 snact click @e1
 snact wait navigation
-snact snap   # re-snap after navigation
+snact snap                          # re-snap after navigation
 ```
 
-### 4. Session — persist browser state
+### 5. Session &mdash; persist browser state
 
 ```bash
-snact session save github-work    # Save cookies + localStorage
-snact session load github-work    # Restore in a new session
-snact session list
-snact session delete github-work
+snact session save github           # cookies + localStorage
+snact session load github           # restore later
 ```
 
-### 5. Record & Replay — zero LLM cost for repeated tasks
+### 6. Record & Replay &mdash; zero LLM cost
 
 ```bash
-# Record
 snact record start login-flow
 snact snap https://app.example.com/login
 snact fill @e1 "user@example.com"
-snact fill @e2 "password"
 snact click @e3
 snact wait navigation
 snact record stop
 
-# Replay (no LLM calls, ~100ms)
+# Day 2, 3, 4... — no LLM, no tokens, ~100ms
 snact replay login-flow
 ```
 
@@ -136,102 +134,132 @@ snact replay login-flow
 
 | Command | Description |
 |---------|-------------|
-| `snact snap [url]` | Extract interactable elements from the page |
-| `snact click <@ref>` | Click an element |
-| `snact fill <@ref> <value>` | Set input field value |
-| `snact type <@ref> <text>` | Type text character by character |
-| `snact select <@ref> <value>` | Select option in a `<select>` element |
-| `snact scroll [direction]` | Scroll the page (up/down/left/right) |
-| `snact screenshot` | Capture page screenshot |
-| `snact wait <condition>` | Wait for navigation, selector, or timeout (ms) |
-| `snact session <save\|load\|list\|delete>` | Manage browser sessions |
-| `snact record <start\|stop\|list\|delete>` | Record command workflows |
-| `snact replay <name>` | Replay a recorded workflow |
-| `snact browser launch` | Launch Chrome with remote debugging |
+| `snap [url]` | Extract interactable elements with section context |
+| `read [url]` | Read visible text as structured markdown |
+| `click <@ref>` | Click an element |
+| `fill <@ref> <value>` | Set input field value (clears existing) |
+| `type <@ref> <text>` | Type text character by character (for autocomplete) |
+| `select <@ref> <value>` | Select option in a dropdown |
+| `scroll [direction]` | Scroll the page |
+| `screenshot [--file]` | Capture page as PNG |
+| `wait <condition>` | Wait for navigation, CSS selector, or timeout (ms) |
+| `session save\|load\|list\|delete` | Manage browser sessions |
+| `record start\|stop\|list\|delete` | Record command sequences |
+| `replay <name>` | Replay a recorded workflow |
+| `browser launch\|stop\|status` | Manage Chrome instance |
+| `schema [command]` | JSON Schema introspection |
+| `mcp` | Start MCP server (JSON-RPC over stdio) |
 
-### Global Options
+### Global flags
 
 ```
---port <PORT>    Chrome debugging port [default: 9222]
---verbose        Enable debug logging
---output <FMT>   Output format: text or json [default: text]
+--port <PORT>     Chrome debugging port [default: 9222]
+--output <FMT>    Output format: text, json, ndjson [default: auto-detect]
+--dry-run         Preview action without executing
+--lang <LANG>     Accept-Language header [default: en-US]
+--focus <SEL>     CSS selector to limit scope (snap/read)
+--verbose         Debug logging
+```
+
+## AI agent integration
+
+### Claude Code (CLI)
+
+snact works as a native CLI tool &mdash; no MCP configuration needed:
+
+```bash
+snact browser launch --background
+claude
+# "Use snact to check my GitHub PR review queue"
+```
+
+### MCP server
+
+For Claude Desktop or any MCP client:
+
+```json
+{
+  "mcpServers": {
+    "snact": {
+      "command": "snact",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+### Piped / scripted
+
+```bash
+# Auto-detects JSON when piped
+snact snap https://example.com | jq '.elements | keys[]'
+
+# NDJSON streaming
+snact snap https://example.com --output=ndjson
 ```
 
 ## Architecture
 
 ```
-┌──────────────────────────────────────────┐
-│              AI Agent (LLM)              │
-│         Claude, GPT, local models        │
-└──────────────┬───────────────────────────┘
-               │ CLI (stdout/stdin)
-┌──────────────▼───────────────────────────┐
-│            snact CLI (snact-cli)          │
-│           clap subcommands               │
-├──────────────────────────────────────────┤
-│          snact Core (snact-core)          │
-│  ┌──────┐ ┌──────┐ ┌───────┐ ┌────────┐ │
-│  │ Snap │ │Action│ │Session│ │Record/ │ │
-│  │      │ │      │ │       │ │Replay  │ │
-│  └──┬───┘ └──┬───┘ └───┬───┘ └────┬───┘ │
-│     └────┬───┘         │          │      │
-│     Element Map        │          │      │
-│     (@eN registry)     │          │      │
-├──────────────────────────────────────────┤
-│          snact CDP (snact-cdp)           │
-│  WebSocket transport + ~25 CDP commands  │
-└──────────────┬───────────────────────────┘
-               │ WebSocket (CDP)
-        ┌──────▼──────┐
-        │Chrome/Chromium│
-        └─────────────┘
+AI Agent (Claude, GPT, ...)
+    │ CLI stdout/stdin
+    ▼
+┌─────────────────────────────────────┐
+│  snact-cli    Thin CLI shell (clap) │
+├─────────────────────────────────────┤
+│  snact-core   Domain logic          │
+│  ┌─────┐ ┌────┐ ┌───────┐ ┌─────┐  │
+│  │Snap │ │Read│ │Action │ │Rec/ │  │
+│  │     │ │    │ │       │ │Play │  │
+│  └──┬──┘ └──┬─┘ └───┬───┘ └──┬──┘  │
+│     └───┬───┘       │        │     │
+│    Element Map   Session     │     │
+│    (@eN refs)    Storage     │     │
+├─────────────────────────────────────┤
+│  snact-cdp    CDP transport         │
+│  WebSocket + ~25 hand-written cmds  │
+└─────────────┬───────────────────────┘
+              │ WebSocket (CDP)
+       ┌──────▼──────┐
+       │   Chrome     │
+       └─────────────┘
 ```
 
-### Crate Structure
+**Three-crate workspace** &mdash; `cdp` handles Chrome protocol, `core` is the library, `cli` is a thin shell.
 
-```
-snact/
-├── crates/
-│   ├── snact-cdp/     # CDP transport layer (WebSocket, Chrome discovery)
-│   ├── snact-core/    # Domain logic (snap, action, session, record)
-│   └── snact-cli/     # Binary entry point
-```
+### How contextual snap works
 
-- **snact-cdp** — Direct CDP communication over WebSocket. ~25 hand-written commands instead of generated bindings, keeping the binary small and compile times fast.
-- **snact-core** — Smart snapshot extraction (DOMSnapshot + Accessibility tree merge), element filtering, action execution, session persistence, workflow recording.
-- **snact-cli** — Thin CLI shell using clap derive macros.
+1. **`DOMSnapshot.captureSnapshot`** &mdash; Full flattened DOM including Shadow DOM
+2. **`Accessibility.getFullAXTree`** &mdash; Semantic roles, names, properties
+3. **Merge** &mdash; Join DOM nodes with AX nodes by `backendNodeId`
+4. **Extract context** &mdash; Collect headings (h1-h6) and text blocks from the snapshot
+5. **Filter** &mdash; Keep only interactable elements, exclude hidden/aria-hidden
+6. **Compress** &mdash; Assign `@eN` refs, group by section headings, append nearby text
 
-## How Smart Snapshot Works
+Result: the LLM sees page structure **and** actionable elements in one call.
 
-1. **`DOMSnapshot.captureSnapshot`** — Gets the full flattened DOM including Shadow DOM in a single CDP call
-2. **`Accessibility.getFullAXTree`** — Gets semantic roles, names, and properties
-3. **Merge** — Joins DOM nodes with accessibility nodes by `backendNodeId`
-4. **Filter** — Keeps only interactable elements (buttons, links, inputs, etc.), excludes hidden elements
-5. **Compress** — Assigns `@eN` references, outputs one element per line with only decision-relevant attributes
+### Design decisions
 
-The element map (`@e1` → `backendNodeId`) is persisted to disk so subsequent commands can resolve references without re-snapping.
+- **Hand-written CDP types** over generated bindings. snact needs ~25 commands; hand-writing keeps binary small and compile times under 30s.
+- **Disk-based state** between invocations. snact connects, works, exits. Element maps, sessions, and workflows persist as JSON.
+- **`backendNodeId`** as element identifier &mdash; stable within a page load. Selector hints stored as backup for replay self-healing.
+- **Single-threaded tokio** &mdash; snact does one thing at a time.
 
-## Design Decisions
+## Data storage
 
-- **Hand-written CDP types** over generated libraries (`chromiumoxide` = 60K lines). snact needs ~25 commands; hand-writing keeps binary small and compile times under 30s.
-- **Disk-based state** between invocations. snact connects to Chrome, does its work, and exits. Element maps, sessions, and workflows persist as JSON files.
-- **`backendNodeId` as element identifier** — Stable within a page load, more reliable than CSS selectors. Selector hints are stored as backup for replay self-healing.
-- **Single-threaded tokio runtime** — snact does one thing at a time. No need for multi-threaded parallelism.
-
-## Data Storage
-
-snact stores all state in `~/.local/share/snact/` (Linux) or `~/Library/Application Support/snact/` (macOS):
+All state lives in `~/.local/share/snact/` (Linux) or `~/Library/Application Support/snact/` (macOS):
 
 ```
 snact/
-├── element_map.json     # Current @eN → element mappings
-├── screenshot.png       # Latest screenshot
-├── sessions/            # Saved browser sessions
-│   └── {name}.json
-├── workflows/           # Recorded workflows
-│   └── {name}.json
-└── recording.json       # Active recording state (if any)
+├── element_map.json      # Current @eN → element mappings
+├── sessions/{name}.json  # Saved browser sessions
+├── workflows/{name}.json # Recorded workflows
+└── recording.json        # Active recording state
 ```
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, project structure, and commit conventions.
 
 ## License
 
