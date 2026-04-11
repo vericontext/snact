@@ -20,14 +20,21 @@ snact --version
 ## 1. Launch Chrome
 
 ```bash
-# Launch with visible UI (for demos)
+# Launch in background — terminal stays free (recommended)
+snact browser launch --background
+
+# Launch with visible UI — blocks terminal (Ctrl+C to stop)
 snact browser launch
 
 # Headless mode
-snact browser launch --headless
+snact browser launch --headless --background
+
+# Check status / stop
+snact browser status
+snact browser stop
 ```
 
-> Connects via CDP on port 9222. Run in a separate terminal (Ctrl+C to stop).
+> Connects via CDP on port 9222.
 
 ---
 
@@ -171,85 +178,233 @@ snact screenshot --file=./demo-capture.png
 
 ---
 
-## 9. Claude Code + snact (AI Agent Demo)
+## 9. Claude Code + snact — Killer Demo
 
-The real power of snact: let an AI agent drive the browser autonomously.
-Make sure Chrome is running (`snact browser launch` in a separate terminal).
+This is the real payoff: hand Claude Code a natural language task, and it autonomously drives the browser — snap, act, snap, answer — with no human intervention.
 
-### 9-1. Google Search (Multi-Step)
+### Setup (one-time)
 
-Tell Claude Code:
-```
-Use snact to search Google for "snact browser automation" and give me
-the titles and URLs of the first 3 results. Run snact --help first.
-```
+```bash
+# 1. Launch Chrome in background (stays up, doesn't block terminal)
+snact browser launch --background
 
-What Claude Code does autonomously:
-```
-snact --help                              # learn the workflow
-snact snap https://www.google.com         # find search elements
-snact fill @e8 "snact browser automation" # fill search box
-snact click @e12                          # click search button
-snact snap                                # read results
-→ returns structured answer
+# 2. Open a new Claude Code session in the same directory
+claude
 ```
 
-### 9-2. Hacker News Top Stories
+Claude Code reads `AGENT.md` automatically and knows the full snact workflow.
 
-```
-Use snact to get the top 5 story titles from Hacker News.
-```
+---
 
-### 9-3. GitHub Repo Info (No Login Required)
+### Demo A — Live Web Research
 
+**You type:**
 ```
-Use snact to check the star count and latest commit message
-on the github.com/vericontext/snact repo.
-```
-
-### 9-4. Wikipedia Summary
-
-```
-Use snact to go to the Wikipedia page for "Rust (programming language)"
-and list the table of contents.
+Use snact to find the current price of the MacBook Pro 14" M4 Pro on apple.com
+and tell me what storage options are available.
 ```
 
-### 9-5. Product Hunt Today
-
+**Claude Code runs autonomously:**
 ```
-Use snact to find today's top 3 products on Product Hunt
-with their names and taglines.
+snact snap https://www.apple.com/shop/buy-mac/macbook-pro/14-inch
+# @e3  [link]   "14-inch MacBook Pro"
+# @e12 [button] "Buy" price="$1,999"
+# @e15 [select] "Storage" id="storage-select"
+# ...
+
+snact snap --focus="#configure-form"
+# @e1 [option] "512GB SSD"
+# @e2 [option] "1TB SSD"
+# @e3 [option] "2TB SSD"
 ```
 
-### Tips for Claude Code Demo
+**Claude Code replies:**
+```
+MacBook Pro 14" M4 Pro starts at $1,999.
+Storage options: 512GB SSD / 1TB SSD / 2TB SSD
+```
 
-- Always have Chrome running first: `snact browser launch`
-- Claude Code will run `snact --help` to learn the workflow automatically
-- The `--output=json` is auto-detected when piped, so Claude Code gets structured data
-- Use `--dry-run` to show safety: Claude Code can preview before acting
-- The entire snap → act → snap loop typically takes 2-5 seconds
+Total LLM calls: **2 snaps, 0 human steps**.
+
+---
+
+### Demo B — Multi-Step Form Automation
+
+**You type:**
+```
+Use snact to go to github.com/login, fill in username "demo-user"
+and password "demo-pass", but use --dry-run so nothing actually happens.
+Show me what would execute.
+```
+
+**Claude Code runs:**
+```
+snact snap https://github.com/login
+# @e1 [textbox] "Username or email address" id="login_field"
+# @e2 [textbox] "Password"                  id="password"
+# @e3 [button]  "Sign in"
+
+snact fill @e1 "demo-user" --dry-run
+# {"status":"dry_run","action":"fill","args":{"ref":"@e1","value":"demo-user"}}
+
+snact fill @e2 "demo-pass" --dry-run
+# {"status":"dry_run","action":"fill","args":{"ref":"@e2","value":"demo-pass"}}
+
+snact click @e3 --dry-run
+# {"status":"dry_run","action":"click","args":{"ref":"@e3"}}
+```
+
+**Why this matters:** Agent previewed a 3-step form workflow with exact refs, zero execution risk, full auditability.
+
+---
+
+### Demo C — Scrape + Summarize
+
+**You type:**
+```
+Use snact to get the top 5 stories from Hacker News right now
+with their point counts. Give me a one-line summary of each.
+```
+
+**Claude Code runs:**
+```
+snact snap https://news.ycombinator.com --output ndjson | head -20
+# {"ref":"@e1","role":"link","name":"Show HN: I built X ...","tag":"a"}
+# {"ref":"@e2","role":"link","name":"Ask HN: Why does Y ...","tag":"a"}
+# {"ref":"@e3","role":"link","name":"Postgres just got ...","tag":"a"}
+# ...
+```
+
+**Why NDJSON matters:** Claude Code pipes the stream through `head` — reads only the first 20 elements instead of loading the entire page, saving tokens on element-heavy pages.
+
+---
+
+### Demo D — Session + Replay (Zero LLM Cost)
+
+**You type:**
+```
+Use snact to log in to GitHub with my credentials, save the session,
+then record a workflow that visits my notifications page.
+```
+
+**Claude Code runs:**
+```
+snact snap https://github.com/login
+snact fill @e1 "your-username"
+snact fill @e2 "your-password"
+snact click @e3
+snact wait navigation
+snact session save github-auth
+
+snact record start check-notifications
+snact snap https://github.com/notifications
+snact record stop
+```
+
+**Next time, you just say:**
+```
+Check my GitHub notifications using the saved workflow.
+```
+
+**Claude Code runs:**
+```
+snact session load github-auth
+snact replay check-notifications
+```
+
+Zero LLM reasoning. Zero tokens on the replay.
+
+---
+
+### Demo E — Schema-Guided Usage
+
+**You type:**
+```
+What exact JSON does snact snap return? Show me the output schema.
+```
+
+**Claude Code runs:**
+```
+snact schema snap
+```
+
+**Returns:**
+```json
+{
+  "description": "Extract interactable elements ...",
+  "output": {
+    "json": {
+      "type": "object",
+      "properties": {
+        "count": { "type": "integer" },
+        "elements": {
+          "additionalProperties": {
+            "properties": {
+              "role": { "type": "string" },
+              "name": { "type": "string" },
+              "tag":  { "type": "string" },
+              ...
+            }
+          }
+        }
+      }
+    }
+  }
+}
+```
+
+Agent now knows the exact output shape — no hallucinated field names, no trial-and-error.
+
+---
+
+### Why This Works
+
+| Problem with other tools | snact solution |
+|--------------------------|----------------|
+| Playwright MCP: ~114K tokens per session | snap output: 5–50 tokens per element |
+| Agents guess parameter names | `snact schema` returns exact JSON Schema |
+| Browser state lost between calls | `snact session save/load` persists everything |
+| Repeated workflows burn LLM budget | `snact record/replay` = zero tokens |
+| Agent can't tell if action is safe | `--dry-run` on every mutation |
+| Web content could inject instructions | Prompt injection detection built in |
+
+---
+
+### Cleanup
+
+```bash
+snact browser stop
+```
 
 ---
 
 ## Demo Flow (Recommended Order)
 
 ```
-Install → Launch Chrome (separate terminal) → snap (token efficiency)
-→ click/fill (snap+act loop)
-→ dry-run (safety)
-→ session save/load (state persistence)
-→ record/replay (automation)
-→ JSON pipe (agent integration)
-→ Claude Code autonomous demo (the wow moment)
+Install
+  → snact browser launch --background    # Chrome up, terminal free
+  → snact snap (token efficiency demo)   # vs Playwright ~114K
+  → snact click/fill (snap+act loop)     # @eN refs
+  → snact --dry-run (safety demo)        # preview before act
+  → snact session save/load              # state persistence
+  → snact record/replay                  # zero-LLM replay
+  → snact schema                         # introspection
+  → Claude Code natural language demo    # ← the wow moment
+  → snact browser stop                   # clean up
 ```
+
+---
 
 ## Troubleshooting
 
 ```bash
-# Check if Chrome is already running
-lsof -i :9222
+# Check Chrome status
+snact browser status
 
-# If connection fails — launch Chrome manually with debugging port
+# Force stop if stuck
+snact browser stop
+
+# If connection still fails — launch Chrome manually
 /Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome \
   --remote-debugging-port=9222 --no-first-run --no-default-browser-check
 
