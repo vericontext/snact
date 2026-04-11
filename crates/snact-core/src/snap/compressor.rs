@@ -84,11 +84,7 @@ fn format_element_line(
         let nearby = ctx.nearby_text(raw.node_index, 100);
         if !nearby.is_empty() && nearby != label {
             // Only add if it provides new information beyond the label
-            let nearby_trimmed = if nearby.len() > 80 {
-                format!("{}...", &nearby[..77])
-            } else {
-                nearby
-            };
+            let nearby_trimmed = truncate(&nearby, 80);
             parts.push(format!("— {nearby_trimmed}"));
         }
     }
@@ -141,10 +137,11 @@ fn best_label(entry: &ElementEntry, raw: &RawElement) -> String {
 }
 
 fn truncate(s: &str, max: usize) -> String {
-    if s.len() <= max {
+    if s.chars().count() <= max {
         s.to_string()
     } else {
-        format!("{}...", &s[..max - 3])
+        let truncated: String = s.chars().take(max.saturating_sub(3)).collect();
+        format!("{truncated}...")
     }
 }
 
@@ -174,11 +171,7 @@ fn format_extras(el: &RawElement) -> String {
     // href for links (truncated)
     if let Some(href) = el.attributes.get("href") {
         if !href.is_empty() {
-            let display = if href.len() > 50 {
-                format!("{}...", &href[..47])
-            } else {
-                href.clone()
-            };
+            let display = truncate(href, 50);
             extras.push(format!("href=\"{display}\""));
         }
     }
