@@ -187,6 +187,15 @@ fn tool_list() -> Value {
     })
 }
 
+/// After a mutation action, perform settle + re-snap and return combined output.
+async fn mcp_action_with_snap(transport: &snact_cdp::CdpTransport, action: &str) -> Result<String> {
+    if let Some(snap) = snact_core::action::post_action_snap(transport, "en-US").await {
+        Ok(format!("ok\n\n---\n\n{}", snap.output))
+    } else {
+        Ok(format!("{{\"status\":\"ok\",\"action\":\"{action}\"}}"))
+    }
+}
+
 /// Call a tool and return text output.
 async fn call_tool(name: &str, args: &Value, port: u16) -> Result<String> {
     let dry_run = args
@@ -236,8 +245,9 @@ async fn call_tool(name: &str, args: &Value, port: u16) -> Result<String> {
                 return Ok(format!("[dry-run] click {element_ref}"));
             }
             let transport = snact_cdp::connect(port).await?;
+            transport.send(&snact_cdp::commands::PageEnable {}).await?;
             snact_core::action::click::execute(&transport, element_ref).await?;
-            Ok(r#"{"status":"ok","action":"click"}"#.to_string())
+            mcp_action_with_snap(&transport, "click").await
         }
         "fill" => {
             let element_ref = args
@@ -254,8 +264,9 @@ async fn call_tool(name: &str, args: &Value, port: u16) -> Result<String> {
                 return Ok(format!("[dry-run] fill {element_ref} {value:?}"));
             }
             let transport = snact_cdp::connect(port).await?;
+            transport.send(&snact_cdp::commands::PageEnable {}).await?;
             snact_core::action::fill::execute(&transport, element_ref, value).await?;
-            Ok(r#"{"status":"ok","action":"fill"}"#.to_string())
+            mcp_action_with_snap(&transport, "fill").await
         }
         "type" => {
             let element_ref = args
@@ -272,8 +283,9 @@ async fn call_tool(name: &str, args: &Value, port: u16) -> Result<String> {
                 return Ok(format!("[dry-run] type {element_ref} {text:?}"));
             }
             let transport = snact_cdp::connect(port).await?;
+            transport.send(&snact_cdp::commands::PageEnable {}).await?;
             snact_core::action::type_text::execute(&transport, element_ref, text).await?;
-            Ok(r#"{"status":"ok","action":"type"}"#.to_string())
+            mcp_action_with_snap(&transport, "type").await
         }
         "select" => {
             let element_ref = args
@@ -289,8 +301,9 @@ async fn call_tool(name: &str, args: &Value, port: u16) -> Result<String> {
                 return Ok(format!("[dry-run] select {element_ref} {value:?}"));
             }
             let transport = snact_cdp::connect(port).await?;
+            transport.send(&snact_cdp::commands::PageEnable {}).await?;
             snact_core::action::select::execute(&transport, element_ref, value).await?;
-            Ok(r#"{"status":"ok","action":"select"}"#.to_string())
+            mcp_action_with_snap(&transport, "select").await
         }
         "scroll" => {
             let direction = args
@@ -305,8 +318,9 @@ async fn call_tool(name: &str, args: &Value, port: u16) -> Result<String> {
                 ));
             }
             let transport = snact_cdp::connect(port).await?;
+            transport.send(&snact_cdp::commands::PageEnable {}).await?;
             snact_core::action::scroll::execute(&transport, direction, amount).await?;
-            Ok(r#"{"status":"ok","action":"scroll"}"#.to_string())
+            mcp_action_with_snap(&transport, "scroll").await
         }
         "screenshot" => {
             let file = args.get("file").and_then(|v| v.as_str());

@@ -7,12 +7,10 @@ fn ok(fmt: &str, action: &str, extra: Option<(&str, &str)>) {
             obj[k] = serde_json::Value::String(v.to_string());
         }
         println!("{}", obj);
+    } else if let Some((_, v)) = extra {
+        println!("{v}");
     } else {
-        if let Some((_, v)) = extra {
-            println!("{v}");
-        } else {
-            println!("ok");
-        }
+        println!("ok");
     }
 }
 
@@ -27,14 +25,57 @@ fn dry(fmt: &str, action: &str, args: serde_json::Value) {
     }
 }
 
-pub async fn run_click(port: u16, ref_id: &str, fmt: &str, dry_run: bool) -> Result<()> {
+/// Print action result with optional auto re-snap output.
+async fn ok_with_snap(
+    transport: &snact_cdp::CdpTransport,
+    fmt: &str,
+    action: &str,
+    lang: &str,
+    no_snap: bool,
+) {
+    if no_snap {
+        ok(fmt, action, None);
+        return;
+    }
+
+    // Enable page events for settle detection
+    let _ = transport.send(&snact_cdp::commands::PageEnable {}).await;
+
+    if let Some(snap) = snact_core::action::post_action_snap(transport, lang).await {
+        if fmt == "json" {
+            let json = serde_json::json!({
+                "status": "ok",
+                "action": action,
+                "snap": {
+                    "output": snap.output,
+                    "count": snap.element_count,
+                }
+            });
+            println!("{}", json);
+        } else {
+            println!("ok\n---\n{}", snap.output);
+            eprintln!("({} elements)", snap.element_count);
+        }
+    } else {
+        ok(fmt, action, None);
+    }
+}
+
+pub async fn run_click(
+    port: u16,
+    ref_id: &str,
+    fmt: &str,
+    dry_run: bool,
+    no_snap: bool,
+    lang: &str,
+) -> Result<()> {
     if dry_run {
         dry(fmt, "click", serde_json::json!({"ref": ref_id}));
         return Ok(());
     }
     let transport = snact_cdp::connect(port).await?;
     snact_core::action::click::execute(&transport, ref_id).await?;
-    ok(fmt, "click", None);
+    ok_with_snap(&transport, fmt, "click", lang, no_snap).await;
     Ok(())
 }
 
@@ -44,6 +85,8 @@ pub async fn run_fill(
     value: &str,
     fmt: &str,
     dry_run: bool,
+    no_snap: bool,
+    lang: &str,
 ) -> Result<()> {
     if dry_run {
         dry(
@@ -55,11 +98,19 @@ pub async fn run_fill(
     }
     let transport = snact_cdp::connect(port).await?;
     snact_core::action::fill::execute(&transport, ref_id, value).await?;
-    ok(fmt, "fill", None);
+    ok_with_snap(&transport, fmt, "fill", lang, no_snap).await;
     Ok(())
 }
 
-pub async fn run_type(port: u16, ref_id: &str, text: &str, fmt: &str, dry_run: bool) -> Result<()> {
+pub async fn run_type(
+    port: u16,
+    ref_id: &str,
+    text: &str,
+    fmt: &str,
+    dry_run: bool,
+    no_snap: bool,
+    lang: &str,
+) -> Result<()> {
     if dry_run {
         dry(
             fmt,
@@ -70,7 +121,7 @@ pub async fn run_type(port: u16, ref_id: &str, text: &str, fmt: &str, dry_run: b
     }
     let transport = snact_cdp::connect(port).await?;
     snact_core::action::type_text::execute(&transport, ref_id, text).await?;
-    ok(fmt, "type", None);
+    ok_with_snap(&transport, fmt, "type", lang, no_snap).await;
     Ok(())
 }
 
@@ -80,6 +131,8 @@ pub async fn run_select(
     value: &str,
     fmt: &str,
     dry_run: bool,
+    no_snap: bool,
+    lang: &str,
 ) -> Result<()> {
     if dry_run {
         dry(
@@ -91,7 +144,7 @@ pub async fn run_select(
     }
     let transport = snact_cdp::connect(port).await?;
     snact_core::action::select::execute(&transport, ref_id, value).await?;
-    ok(fmt, "select", None);
+    ok_with_snap(&transport, fmt, "select", lang, no_snap).await;
     Ok(())
 }
 
@@ -101,6 +154,8 @@ pub async fn run_scroll(
     amount: Option<i64>,
     fmt: &str,
     dry_run: bool,
+    no_snap: bool,
+    lang: &str,
 ) -> Result<()> {
     if dry_run {
         dry(
@@ -112,7 +167,7 @@ pub async fn run_scroll(
     }
     let transport = snact_cdp::connect(port).await?;
     snact_core::action::scroll::execute(&transport, direction, amount).await?;
-    ok(fmt, "scroll", None);
+    ok_with_snap(&transport, fmt, "scroll", lang, no_snap).await;
     Ok(())
 }
 

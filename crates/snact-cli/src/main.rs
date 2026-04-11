@@ -63,14 +63,20 @@ enum Commands {
         max_lines: usize,
     },
 
-    /// Click an element by @eN reference from snap output
+    /// Click an element by @eN reference from snap output.
+    /// Returns updated page snapshot automatically (use --no-snap to disable).
     Click {
         /// Element reference from snap (e.g. @e1)
         #[arg(name = "ref")]
         element_ref: String,
+
+        /// Skip automatic re-snap after action
+        #[arg(long)]
+        no_snap: bool,
     },
 
-    /// Set an input field's value (clears existing). Use for <input>, <textarea>
+    /// Set an input field's value (clears existing). Use for <input>, <textarea>.
+    /// Returns updated page snapshot automatically.
     Fill {
         /// Element reference from snap (e.g. @e2)
         #[arg(name = "ref")]
@@ -78,9 +84,14 @@ enum Commands {
 
         /// Value to set
         value: String,
+
+        /// Skip automatic re-snap after action
+        #[arg(long)]
+        no_snap: bool,
     },
 
-    /// Type text character by character with key events. Use for autocomplete/search
+    /// Type text character by character with key events. Use for autocomplete/search.
+    /// Returns updated page snapshot automatically.
     Type {
         /// Element reference from snap (e.g. @e2)
         #[arg(name = "ref")]
@@ -88,9 +99,14 @@ enum Commands {
 
         /// Text to type
         text: String,
+
+        /// Skip automatic re-snap after action
+        #[arg(long)]
+        no_snap: bool,
     },
 
-    /// Select an option in a <select> dropdown by value
+    /// Select an option in a <select> dropdown by value.
+    /// Returns updated page snapshot automatically.
     Select {
         /// Element reference from snap (e.g. @e3)
         #[arg(name = "ref")]
@@ -98,9 +114,14 @@ enum Commands {
 
         /// Option value to select
         value: String,
+
+        /// Skip automatic re-snap after action
+        #[arg(long)]
+        no_snap: bool,
     },
 
-    /// Scroll the page in a direction
+    /// Scroll the page in a direction.
+    /// Returns updated page snapshot automatically.
     Scroll {
         /// Direction: up, down, left, right
         #[arg(default_value = "down")]
@@ -109,6 +130,10 @@ enum Commands {
         /// Pixels to scroll [default: 400]
         #[arg(long)]
         amount: Option<i64>,
+
+        /// Skip automatic re-snap after action
+        #[arg(long)]
+        no_snap: bool,
     },
 
     /// Capture a PNG screenshot of the current page
@@ -337,26 +362,82 @@ async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
             )
             .await?;
         }
-        Commands::Click { element_ref } => {
+        Commands::Click {
+            element_ref,
+            no_snap,
+        } => {
             validate::element_ref(&element_ref)?;
-            cmd::action::run_click(cli.port, &element_ref, fmt, cli.dry_run).await?;
+            cmd::action::run_click(cli.port, &element_ref, fmt, cli.dry_run, no_snap, &cli.lang)
+                .await?;
         }
-        Commands::Fill { element_ref, value } => {
+        Commands::Fill {
+            element_ref,
+            value,
+            no_snap,
+        } => {
             validate::element_ref(&element_ref)?;
             validate::fill_value(&value)?;
-            cmd::action::run_fill(cli.port, &element_ref, &value, fmt, cli.dry_run).await?;
+            cmd::action::run_fill(
+                cli.port,
+                &element_ref,
+                &value,
+                fmt,
+                cli.dry_run,
+                no_snap,
+                &cli.lang,
+            )
+            .await?;
         }
-        Commands::Type { element_ref, text } => {
+        Commands::Type {
+            element_ref,
+            text,
+            no_snap,
+        } => {
             validate::element_ref(&element_ref)?;
             validate::fill_value(&text)?;
-            cmd::action::run_type(cli.port, &element_ref, &text, fmt, cli.dry_run).await?;
+            cmd::action::run_type(
+                cli.port,
+                &element_ref,
+                &text,
+                fmt,
+                cli.dry_run,
+                no_snap,
+                &cli.lang,
+            )
+            .await?;
         }
-        Commands::Select { element_ref, value } => {
+        Commands::Select {
+            element_ref,
+            value,
+            no_snap,
+        } => {
             validate::element_ref(&element_ref)?;
-            cmd::action::run_select(cli.port, &element_ref, &value, fmt, cli.dry_run).await?;
+            cmd::action::run_select(
+                cli.port,
+                &element_ref,
+                &value,
+                fmt,
+                cli.dry_run,
+                no_snap,
+                &cli.lang,
+            )
+            .await?;
         }
-        Commands::Scroll { direction, amount } => {
-            cmd::action::run_scroll(cli.port, &direction, amount, fmt, cli.dry_run).await?;
+        Commands::Scroll {
+            direction,
+            amount,
+            no_snap,
+        } => {
+            cmd::action::run_scroll(
+                cli.port,
+                &direction,
+                amount,
+                fmt,
+                cli.dry_run,
+                no_snap,
+                &cli.lang,
+            )
+            .await?;
         }
         Commands::Screenshot { file } => {
             cmd::action::run_screenshot(cli.port, file.as_deref(), fmt).await?;

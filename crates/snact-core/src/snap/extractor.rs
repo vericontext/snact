@@ -19,6 +19,7 @@ pub struct RawElement {
     pub bounds: Option<[f64; 4]>,
     pub is_visible: bool,
     pub ax_properties: HashMap<String, String>,
+    pub ax_description: String,
 }
 
 /// Contextual information extracted from the page structure.
@@ -279,6 +280,13 @@ pub async fn extract(
                         | "dt"
                         | "figcaption"
                         | "blockquote"
+                        | "strong"
+                        | "em"
+                        | "b"
+                        | "time"
+                        | "data"
+                        | "mark"
+                        | "a"
                 );
                 let is_leaf_container = matches!(tag.as_str(), "div" | "section")
                     && !children_map.get(&i).is_some_and(|c| {
@@ -306,16 +314,23 @@ pub async fn extract(
             let attrs = parse_attributes(nodes.attributes.get(i), strings);
 
             // Get accessibility info
-            let (role, name, value, ax_props) =
+            let (role, name, value, ax_props, ax_desc) =
                 if let Some(ax_node) = ax_by_backend_id.get(&backend_id) {
                     (
                         ax_value_str(&ax_node.role),
                         ax_value_str(&ax_node.name),
                         ax_value_str(&ax_node.value),
                         extract_ax_properties(ax_node),
+                        ax_value_str(&ax_node.description),
                     )
                 } else {
-                    (String::new(), String::new(), String::new(), HashMap::new())
+                    (
+                        String::new(),
+                        String::new(),
+                        String::new(),
+                        HashMap::new(),
+                        String::new(),
+                    )
                 };
 
             elements.push(RawElement {
@@ -329,6 +344,7 @@ pub async fn extract(
                 bounds,
                 is_visible,
                 ax_properties: ax_props,
+                ax_description: ax_desc,
             });
         }
     }

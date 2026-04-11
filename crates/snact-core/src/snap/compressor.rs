@@ -61,7 +61,7 @@ pub fn compress(elements: Vec<RawElement>, context: Option<&PageContext>) -> (St
                                 .iter()
                                 .find(|(s, _)| *s == heading_node_idx)
                             {
-                                let summary = ctx.section_text(*start, *end, 200, heading_text);
+                                let summary = ctx.section_text(*start, *end, 300, heading_text);
                                 if !summary.is_empty() {
                                     lines.push(format!("> {summary}"));
                                 }
@@ -269,6 +269,11 @@ fn format_extras(el: &RawElement) -> String {
     // current value for inputs
     if !el.value.is_empty() && el.value != el.name {
         extras.push(format!("value=\"{}\"", el.value));
+    }
+
+    // accessibility description (e.g. "Opens in new tab", validation messages)
+    if !el.ax_description.is_empty() {
+        extras.push(format!("desc=\"{}\"", truncate(&el.ax_description, 80)));
     }
 
     extras.join(" ")
