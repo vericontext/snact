@@ -28,8 +28,12 @@ pub struct PageContext {
     /// Headings in document order: (node_index, level, text).
     pub headings: Vec<(usize, u8, String)>,
     /// Visible text blocks in document order: (node_index, text).
-    /// Includes text from paragraphs, list items, table cells, and bare text nodes.
     pub text_blocks: Vec<(usize, String)>,
+    /// Parent chain for structural proximity checks.
+    pub parent_map: HashMap<usize, usize>,
+    /// JS-extracted section summaries: heading text → section content text.
+    /// Used when DOMSnapshot layout.text doesn't capture JS-rendered content.
+    pub js_section_summaries: Vec<(String, String)>,
 }
 
 impl PageContext {
@@ -43,16 +47,41 @@ impl PageContext {
             .map(|(_, level, text)| (*level, text.as_str()))
     }
 
+    /// Get ancestors up to `depth` levels for a node.
+    fn ancestors(&self, node_index: usize, depth: usize) -> Vec<usize> {
+        let mut result = Vec::with_capacity(depth);
+        let mut current = node_index;
+        for _ in 0..depth {
+            if let Some(&parent) = self.parent_map.get(&current) {
+                result.push(parent);
+                current = parent;
+            } else {
+                break;
+            }
+        }
+        result
+    }
+
+    /// Check if two nodes share a common ancestor within `depth` levels.
+    fn shares_ancestor(&self, a: usize, b: usize, depth: usize) -> bool {
+        let ancestors_a = self.ancestors(a, depth);
+        let ancestors_b = self.ancestors(b, depth);
+        ancestors_a.iter().any(|a| ancestors_b.contains(a))
+    }
+
     /// Collect brief surrounding text near a node_index.
-    /// Returns up to `max_chars` of text from blocks near the element.
+    /// Uses structural proximity (shared ancestors within 3 levels) rather than
+    /// raw document-order distance, so text from unrelated sections is excluded.
     pub fn nearby_text(&self, node_index: usize, max_chars: usize) -> String {
-        // Find text blocks within a reasonable index distance
         let mut nearby: Vec<&str> = Vec::new();
         let mut total_len = 0;
         for (idx, text) in &self.text_blocks {
-            // Only look at text within ±50 node indices (heuristic for "nearby" in document order)
             let dist = (*idx as isize - node_index as isize).unsigned_abs();
-            if dist <= 50 && !text.is_empty() {
+            // Must be within ±50 indices AND share a common ancestor within 3 levels
+            if dist <= 50
+                && !text.is_empty()
+                && (self.parent_map.is_empty() || self.shares_ancestor(node_index, *idx, 3))
+            {
                 if total_len + text.len() > max_chars {
                     break;
                 }
@@ -61,6 +90,58 @@ impl PageContext {
             }
         }
         nearby.join(" ")
+    }
+
+    /// Collect text blocks within a heading section (between start_idx and end_idx).
+    /// Returns a compact summary joined with ` | `, up to max_chars.
+    /// Falls back to JS-extracted section summaries if DOMSnapshot text is empty.
+    pub fn section_text(
+        &self,
+        start_idx: usize,
+        end_idx: usize,
+        max_chars: usize,
+        heading_text: &str,
+    ) -> String {
+        // Try DOMSnapshot text blocks first
+        let mut parts: Vec<&str> = Vec::new();
+        let mut total_len = 0;
+        for (idx, text) in &self.text_blocks {
+            if *idx >= start_idx && *idx < end_idx && !text.is_empty() {
+                let needed = if parts.is_empty() {
+                    text.len()
+                } else {
+                    text.len() + 3 // " | " separator
+                };
+                if total_len + needed > max_chars {
+                    break;
+                }
+                parts.push(text.as_str());
+                total_len += needed;
+            }
+        }
+
+        if !parts.is_empty() {
+            return parts.join(" | ");
+        }
+
+        // Fallback: JS-extracted section summaries (for SPA pages)
+        let heading_lower = heading_text.to_lowercase();
+        for (js_heading, js_content) in &self.js_section_summaries {
+            if js_heading.to_lowercase() == heading_lower {
+                if js_content.len() <= max_chars {
+                    return js_content.clone();
+                }
+                return format!(
+                    "{}...",
+                    js_content
+                        .chars()
+                        .take(max_chars.saturating_sub(3))
+                        .collect::<String>()
+                );
+            }
+        }
+
+        String::new()
     }
 }
 
@@ -146,10 +227,11 @@ pub async fn extract(
             }
         }
 
-        // Build children map for text collection
+        // Build children map + parent map for text collection and structural proximity
         let mut children_map: HashMap<usize, Vec<usize>> = HashMap::new();
         for (i, &parent_idx) in nodes.parent_index.iter().enumerate() {
             if parent_idx >= 0 {
+                context.parent_map.insert(i, parent_idx as usize);
                 children_map.entry(parent_idx as usize).or_default().push(i);
             }
         }
@@ -185,12 +267,27 @@ pub async fn extract(
                     }
                 }
 
-                // Text blocks: p, li, td, th, span, label with visible text
+                // Text blocks: semantic text tags + leaf divs (for prices, descriptions)
                 let is_text_tag = matches!(
                     tag.as_str(),
-                    "p" | "li" | "td" | "th" | "span" | "label" | "dd"
+                    "p" | "li"
+                        | "td"
+                        | "th"
+                        | "span"
+                        | "label"
+                        | "dd"
+                        | "dt"
+                        | "figcaption"
+                        | "blockquote"
                 );
-                if is_text_tag {
+                let is_leaf_container = matches!(tag.as_str(), "div" | "section")
+                    && !children_map.get(&i).is_some_and(|c| {
+                        c.iter().any(|&ci| {
+                            nodes.node_type.get(ci).copied().unwrap_or(0) == 1
+                            // 1 = element node; leaf means no element children
+                        })
+                    });
+                if is_text_tag || is_leaf_container {
                     if let Some(text) = layout_text.get(&i) {
                         let clean = text.split_whitespace().collect::<Vec<_>>().join(" ");
                         if clean.len() > 1 {

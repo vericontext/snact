@@ -2,7 +2,7 @@ pub mod compressor;
 pub mod extractor;
 pub mod filter;
 
-use snact_cdp::commands::{DomGetBoxModel, DomGetDocument, DomQuerySelectorAll};
+use snact_cdp::commands::{DomGetBoxModel, DomGetDocument, DomQuerySelectorAll, RuntimeEvaluate};
 use snact_cdp::CdpTransport;
 
 use crate::element_map::ElementMap;
@@ -54,7 +54,14 @@ pub async fn execute(
     }
 
     // Extract elements and page context
-    let (raw_elements, page_context) = extractor::extract(transport).await?;
+    let (raw_elements, mut page_context) = extractor::extract(transport).await?;
+
+    // Supplement section summaries via JS for SPA pages where DOMSnapshot layout.text
+    // may not capture dynamically rendered content (prices, descriptions, etc.)
+    // JS extracts text grouped by their nearest heading, then we match to PageContext headings.
+    if let Ok(js_sections) = extract_section_summaries_js(transport).await {
+        page_context.js_section_summaries = js_sections;
+    }
 
     // Resolve focus bounds if --focus was provided
     let focus_bounds = if let Some(selector) = focus {
@@ -82,6 +89,64 @@ pub async fn execute(
         element_map,
         element_count,
     })
+}
+
+/// Extract text content grouped by section headings via JS.
+/// Returns (heading_text, section_content) pairs.
+/// This captures JS-rendered content that DOMSnapshot may miss on SPAs.
+async fn extract_section_summaries_js(
+    transport: &CdpTransport,
+) -> Result<Vec<(String, String)>, snact_cdp::CdpTransportError> {
+    let js = r#"(function(){
+var skip={'script':1,'style':1,'noscript':1,'svg':1,'head':1,'meta':1,'link':1,'iframe':1,'canvas':1};
+var sections=[];var curH='';var curT=[];
+function flush(){if(curH&&curT.length){sections.push({h:curH,t:curT.join(' | ').slice(0,200)});}curT=[];}
+function v(el){try{var s=window.getComputedStyle(el);
+if(s.display==='none'||s.visibility==='hidden'||s.opacity==='0')return false;
+var r=el.getBoundingClientRect();if(r.width===0&&r.height===0)return false;}catch(e){}return true;}
+function walk(el){if(!el||el.nodeType!==1)return;var tag=el.tagName.toLowerCase();
+if(skip[tag])return;if(!v(el))return;
+if(/^h[1-6]$/.test(tag)){flush();curH=(el.innerText||'').trim().replace(/\s+/g,' ').slice(0,120);return;}
+if(tag==='p'||tag==='li'||tag==='td'||tag==='th'||tag==='dt'||tag==='dd'||
+tag==='figcaption'||tag==='blockquote'||tag==='label'){
+var t=(el.innerText||'').trim().replace(/\s+/g,' ');
+if(t&&t.length>1&&t.length<300)curT.push(t.slice(0,150));return;}
+if((tag==='div'||tag==='section'||tag==='span')&&el.children.length===0){
+var t=(el.innerText||el.textContent||'').trim().replace(/\s+/g,' ');
+if(t&&t.length>1&&t.length<200)curT.push(t.slice(0,150));return;}
+for(var c=0;c<el.children.length;c++)walk(el.children[c]);}
+walk(document.body);flush();return JSON.stringify(sections);
+})()"#;
+
+    let result = transport
+        .send(&RuntimeEvaluate {
+            expression: js.to_string(),
+            return_by_value: Some(true),
+            await_promise: Some(false),
+            context_id: None,
+        })
+        .await?;
+
+    let json_str = result
+        .result
+        .value
+        .as_ref()
+        .and_then(|v| v.as_str())
+        .unwrap_or("[]");
+
+    let items: Vec<serde_json::Value> = serde_json::from_str(json_str).unwrap_or_default();
+
+    Ok(items
+        .iter()
+        .filter_map(|item| {
+            let heading = item.get("h")?.as_str()?.to_string();
+            let text = item.get("t")?.as_str()?.to_string();
+            if heading.is_empty() || text.is_empty() {
+                return None;
+            }
+            Some((heading, text))
+        })
+        .collect())
 }
 
 /// Resolve the bounding box [x, y, w, h] of the first element matching `selector`.

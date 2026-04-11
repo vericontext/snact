@@ -12,6 +12,26 @@ pub fn compress(elements: Vec<RawElement>, context: Option<&PageContext>) -> (St
     let mut lines = Vec::new();
     let mut current_heading: Option<&str> = None;
 
+    // Pre-compute heading boundaries for section text extraction
+    let heading_boundaries: Vec<(usize, usize)> = context
+        .map(|ctx| {
+            ctx.headings
+                .iter()
+                .enumerate()
+                .map(|(i, (idx, _, _))| {
+                    let end = ctx
+                        .headings
+                        .get(i + 1)
+                        .map(|(next_idx, _, _)| *next_idx)
+                        .unwrap_or(usize::MAX);
+                    (*idx, end)
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let mut last_heading_idx: Option<usize> = None;
+
     for el in &elements {
         // Insert section heading if it changed
         if let Some(ctx) = context {
@@ -25,6 +45,29 @@ pub fn compress(elements: Vec<RawElement>, context: Option<&PageContext>) -> (St
                         lines.push(String::new());
                     }
                     lines.push(format!("{hashes} {heading_text}"));
+
+                    // Section content summary: key text blocks in this section
+                    // Find the heading boundary for this heading
+                    if let Some(heading_node_idx) = ctx
+                        .headings
+                        .iter()
+                        .rev()
+                        .find(|(idx, _, t)| *idx < el.node_index && t.as_str() == heading_text)
+                        .map(|(idx, _, _)| *idx)
+                    {
+                        if last_heading_idx != Some(heading_node_idx) {
+                            last_heading_idx = Some(heading_node_idx);
+                            if let Some((start, end)) = heading_boundaries
+                                .iter()
+                                .find(|(s, _)| *s == heading_node_idx)
+                            {
+                                let summary = ctx.section_text(*start, *end, 200, heading_text);
+                                if !summary.is_empty() {
+                                    lines.push(format!("> {summary}"));
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -81,10 +124,10 @@ fn format_element_line(
 
     // Contextual text — brief nearby text that helps understand what this element relates to
     if let Some(ctx) = context {
-        let nearby = ctx.nearby_text(raw.node_index, 100);
+        let nearby = ctx.nearby_text(raw.node_index, 150);
         if !nearby.is_empty() && nearby != label {
             // Only add if it provides new information beyond the label
-            let nearby_trimmed = truncate(&nearby, 80);
+            let nearby_trimmed = truncate(&nearby, 120);
             parts.push(format!("— {nearby_trimmed}"));
         }
     }
@@ -188,6 +231,39 @@ fn format_extras(el: &RawElement) -> String {
         || el.attributes.contains_key("disabled")
     {
         extras.push("disabled".to_string());
+    }
+
+    // expanded/collapsed state (dropdowns, accordions, menus)
+    match el.ax_properties.get("expanded").map(|v| v.as_str()) {
+        Some("true") => extras.push("expanded".to_string()),
+        Some("false") => extras.push("collapsed".to_string()),
+        _ => {}
+    }
+
+    // selected state (tabs, options)
+    if el.ax_properties.get("selected").map(|v| v.as_str()) == Some("true") {
+        extras.push("selected".to_string());
+    }
+
+    // haspopup (clicking opens a popup/menu/dialog)
+    if let Some(popup) = el.ax_properties.get("haspopup") {
+        if popup != "false" {
+            extras.push(format!("popup:{popup}"));
+        }
+    }
+
+    // required (form validation)
+    if el.ax_properties.get("required").map(|v| v.as_str()) == Some("true")
+        || el.attributes.contains_key("required")
+    {
+        extras.push("required".to_string());
+    }
+
+    // readonly
+    if el.ax_properties.get("readonly").map(|v| v.as_str()) == Some("true")
+        || el.attributes.contains_key("readonly")
+    {
+        extras.push("readonly".to_string());
     }
 
     // current value for inputs
