@@ -100,6 +100,27 @@ snact record stop
 snact replay <name>          # instant replay, zero LLM cost
 ```
 
+## Schema Introspection
+
+```bash
+snact schema              # full JSON Schema for all commands
+snact schema snap         # schema for a specific command
+snact schema click        # input/output shape for click
+```
+
+Use this to discover exact parameter types and output shapes at runtime.
+
+## Security Scope
+
+snact operates **exclusively on the local machine**:
+
+- Connects only to `127.0.0.1` (Chrome CDP on localhost)
+- No network requests to external services
+- No credentials stored or transmitted
+- Reads/writes only to `~/.local/share/snact/` (element map, sessions, recordings)
+- Chrome process managed via PID files in the same directory
+- Does **not** access system files, other processes, or network resources
+
 ## Security Notes
 
 - `--dry-run` validates inputs without executing — use before uncertain mutations

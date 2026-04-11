@@ -140,6 +140,12 @@ enum Commands {
 
     /// Start an MCP server exposing snact tools over JSON-RPC (stdio)
     Mcp,
+
+    /// Show JSON Schema for a command's inputs and outputs
+    Schema {
+        /// Command name (e.g. snap, click, fill). Omit for full schema.
+        command: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -213,6 +219,10 @@ EXAMPLES:
   snact session load mysite                 # restore session later
   snact --lang=ko snap https://google.com   # Korean content
 
+SCHEMA INTROSPECTION:
+  snact schema                           # full JSON Schema for all commands
+  snact schema snap                      # schema for a specific command
+
 MCP SERVER:
   snact mcp                              # start JSON-RPC server over stdio
   Add to claude_desktop_config.json:
@@ -256,9 +266,13 @@ async fn main() {
 
 fn emit_error(err: &anyhow::Error, fmt: &str) {
     let msg = err.to_string();
-    let code = if msg.contains("Cannot connect") || msg.contains("BrowserNotFound") || msg.contains("Chrome") {
+    let code = if msg.contains("Cannot connect")
+        || msg.contains("BrowserNotFound")
+        || msg.contains("Chrome")
+    {
         "BROWSER_NOT_CONNECTED"
-    } else if msg.contains("not found") || msg.contains("No such") || msg.contains("does not exist") {
+    } else if msg.contains("not found") || msg.contains("No such") || msg.contains("does not exist")
+    {
         "NOT_FOUND"
     } else if msg.contains("Invalid") || msg.contains("invalid") || msg.contains("Unknown") {
         "INVALID_INPUT"
@@ -269,7 +283,10 @@ fn emit_error(err: &anyhow::Error, fmt: &str) {
     };
 
     if fmt == "json" {
-        eprintln!("{}", serde_json::json!({"error": {"code": code, "message": msg}}));
+        eprintln!(
+            "{}",
+            serde_json::json!({"error": {"code": code, "message": msg}})
+        );
     } else {
         eprintln!("error: {msg}");
     }
@@ -360,6 +377,9 @@ async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
         },
         Commands::Mcp => {
             cmd::mcp::run(cli.port).await?;
+        }
+        Commands::Schema { command } => {
+            cmd::schema::run(command.as_deref(), fmt);
         }
     }
 

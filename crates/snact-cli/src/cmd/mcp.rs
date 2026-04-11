@@ -324,8 +324,10 @@ async fn call_tool(name: &str, args: &Value, port: u16) -> Result<String> {
             if background {
                 std::mem::forget(browser);
             }
-            Ok(json!({"status":"launched","port":port,"pid":pid,"background":background})
-                .to_string())
+            Ok(
+                json!({"status":"launched","port":port,"pid":pid,"background":background})
+                    .to_string(),
+            )
         }
         "browser_stop" => {
             let pid_path = snact_core::data_dir().join(format!("chrome-{port}.pid"));
@@ -355,9 +357,7 @@ async fn call_tool(name: &str, args: &Value, port: u16) -> Result<String> {
                         .map(|s| s.success())
                         .unwrap_or(false);
                     if alive {
-                        return Ok(
-                            json!({"running":true,"port":port,"pid":pid}).to_string()
-                        );
+                        return Ok(json!({"running":true,"port":port,"pid":pid}).to_string());
                     }
                     std::fs::remove_file(&pid_path).ok();
                 }
@@ -396,10 +396,7 @@ pub async fn run(port: u16) -> Result<()> {
         };
 
         let id = request.get("id").cloned().unwrap_or(Value::Null);
-        let method = request
-            .get("method")
-            .and_then(|v| v.as_str())
-            .unwrap_or("");
+        let method = request.get("method").and_then(|v| v.as_str()).unwrap_or("");
 
         // Notifications have no id and no response needed
         if id.is_null() && method.starts_with("notifications/") {

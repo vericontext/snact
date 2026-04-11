@@ -17,10 +17,7 @@ const INJECTION_PATTERNS: &[&str] = &[
 /// Warn if any element labels/attributes contain potential injection patterns.
 fn check_injection(result: &snact_core::snap::SnapResult) {
     for entry in result.element_map.elements.values() {
-        let fields = [
-            entry.name.as_str(),
-            entry.selector_hint.as_str(),
-        ];
+        let fields = [entry.name.as_str(), entry.selector_hint.as_str()];
         for field in fields {
             let lower = field.to_lowercase();
             for pattern in INJECTION_PATTERNS {
