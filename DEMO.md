@@ -189,89 +189,75 @@ claude
 
 ---
 
-### Day 1 — Claude Code가 워크플로우를 배운다
+### 시나리오: 매일 타임시트 제출이 귀찮다
 
-브라우저에서 직접 GitHub에 로그인한 뒤:
+회사 타임시트 시스템에 매일 같은 폼을 채워야 한다고 가정합니다.  
+브라우저에서 타임시트 사이트에 직접 로그인한 뒤:
 
-```
-Use snact to save my current browser session as "github"
-and record going to my notifications page as "check-notifications".
-```
-
-Claude Code가 현재 로그인 상태를 그대로 캡처 → `session save` → `record`.  
-비밀번호는 snact에 노출되지 않습니다.
+**Day 1 — 한 번만 가르친다:**
 
 ```
-Done. Say "check notifications" any time to run this instantly.
+Use snact to save my current browser session as "work".
+Then fill in today's timesheet on the current page:
+8 hours on "Platform", category "Development".
+After submitting, record the whole thing as "timesheet".
+```
+
+Claude Code가 폼을 찾아 채우고, 제출하고, 전체 과정을 녹화합니다.
+
+```
+Done. Tomorrow just say "submit timesheet".
 ```
 
 ---
 
-### Day 2, 3, 4 ... — 토큰 0, 2초
+**Day 2, 3, 4 ... — 두 글자면 끝:**
 
 ```
-check notifications
+submit timesheet
 ```
 
 ```bash
-# Claude Code가 실행하는 것 전부:
-snact session load github
-snact replay check-notifications
+# Claude Code가 실행하는 전부:
+snact session load work
+snact replay timesheet
 ```
 
 ```
-3 notifications — 1 urgent: CI failed on main.
+Done. 8h submitted for today.
 ```
 
-**LLM 추론: 0턴. 토큰: 0. 시간: 2초.**
+**LLM 추론: 0턴. 토큰: 0. 시간: 3초.**
+
+매일 타임시트 사이트에 들어가서 폼 클릭하던 2분이 사라집니다.  
+한 달이면 **40분 절약, LLM 비용 0**.
 
 ---
 
-### 반복 폼 자동화
+### 더 나아가: 완전 자동화
 
 ```
-Use snact to submit these 3 expense reports to expenses.company.com.
-Use the saved work session. Show me dry-run first.
-- Airfare $450, Travel, 2026-04-01
-- Hotel $320, Accommodation, 2026-04-01  
-- Dinner $85, Meals, 2026-04-02
+Write a cron job that submits my timesheet automatically at 6pm every weekday.
 ```
-
-Claude Code가 `--dry-run`으로 3건 미리보기 → 확인 후 실제 제출.  
-수동으로 폼 3개: 10분. snact: **30초, 확인 1번**.
-
----
-
-### cron으로 LLM 없는 자동화
-
-```
-Record a workflow that screenshots our status page every hour.
-Write a cron script for it.
-```
-
-Claude Code가 워크플로우 녹화 후 스크립트 생성:
 
 ```bash
-#!/bin/bash
-snact browser launch --background
-snact session load monitor
-snact replay status-check
-snact screenshot --file="/logs/status-$(date +%H%M).png"
-snact browser stop
+# crontab -e
+0 18 * * 1-5 snact session load work && snact replay timesheet
 ```
 
-이후 매 시간 자동 실행. **Claude Code 불필요. 토큰 불필요.**
+이제 타임시트를 **영원히 신경 쓰지 않아도 됩니다.**  
+Claude Code도, API 키도, 토큰도 필요 없습니다.
 
 ---
 
-### 왜 dramatic한가
+### 왜 다른 도구로는 안 되나
 
 | | Playwright MCP | snact |
 |--|--|--|
 | 첫 실행 | LLM 비용 | LLM 비용 |
-| **100번째 실행** | **100× LLM 비용** | **토큰 0** |
-| cron/자동화 | LLM API 필요 | 쉘 스크립트만으로 가능 |
-| 로그인 재사용 | 매번 재로그인 | `session load` 1줄 |
+| **매일 실행** | **매번 LLM 비용** | **토큰 0** |
+| cron 자동화 | LLM API 필요 | 쉘 1줄로 가능 |
+| 로그인 유지 | 매번 재인증 | `session load` 1줄 |
 
 ---
 
