@@ -11,42 +11,51 @@
 
 ---
 
-snact lets AI agents control browsers with extreme token efficiency. One `snap` returns the page structure and every actionable element in a format an LLM can parse in a single turn.
+snact lets AI agents control browsers with extreme token efficiency. One `snap` returns page structure, section content, and every actionable element &mdash; enough for an LLM to understand and act in a single turn.
 
 ```
-$ snact snap https://github.com/trending
+$ snact snap https://www.apple.com/shop/buy-mac/macbook-pro
 
-# Trending
-@e19 [link] href="/trending"
-@e20 [link] href="/trending/developers"
+# Buy MacBook Pro
 
-## NousResearch / hermes-agent
-@e28 [link] href="/NousResearch/hermes-agent"
-@e29 [link] href="/NousResearch/hermes-agent/stargazers"
+## Model. Choose your size.
+> 14-inch — From $1,699 or $141.58/mo. | 16-inch — From $2,699 or $224.91/mo.
+@e35 [input:radio] "14-inch" selected
+@e36 [input:radio] "16-inch"
 
-## microsoft / markitdown
-@e37 [link] href="/microsoft/markitdown"
-@e38 [link] href="/microsoft/markitdown/stargazers"
+## Chip. Choose from these powerful options.
+> M5 Pro — 12-core CPU, 16-core GPU | M5 Max — 16-core CPU, 40-core GPU
+@e40 [link]
 
-$ snact click @e28    # navigate to repo
-$ snact read --focus="main"   # read page content as markdown
+$ snact click @e36
+ok
+---
+## Model. Choose your size.                    # ← auto re-snap included
+> 16-inch — Available with M5 Pro or M5 Max
+@e35 [input:radio] "14-inch"
+@e36 [input:radio] "16-inch" selected
 ```
+
+Every action automatically returns a fresh page snapshot &mdash; no manual re-snap needed.
 
 ## Why snact?
 
 |  | Playwright MCP | snact |
 |--|----------------|-------|
-| **Tokens per page** | ~3,000 (full accessibility tree) | **~30** with `--focus` |
+| **After click/fill** | Returns snapshot automatically | **Returns snapshot automatically** |
+| **Tokens per page** | ~3,000 (full accessibility tree) | **~200-800** (section-grouped) |
+| **Page understanding** | Raw DOM tree | **Section headings + content summaries** |
 | **Repeated task cost** | Full LLM call each time | **0** (workflow replay) |
-| **Page understanding** | Requires LLM to parse raw DOM | **Section headings** included in snap |
-| **Session persistence** | None (re-auth every time) | `session save/load` |
-| **Automation** | Requires LLM API | `cron + replay` (zero dependencies) |
+| **Session persistence** | Config-based | `session save/load` (one command) |
+| **Cron automation** | Requires LLM API | Shell one-liner |
 | **Shadow DOM** | Limited | **Full** (CDP direct) |
 | **Install** | npm + browser binary | **Single binary** |
 
 ### The core insight
 
-Most browser automation tools send the entire page state to the LLM on every turn. snact sends only what matters: interactable elements grouped by page sections, with just enough context for the LLM to decide what to do next.
+Most browser automation tools dump the entire page state on every turn. snact sends only what matters: interactable elements grouped by section headings, with content summaries between them. The LLM sees structure **and** content in one call.
+
+After every action (click, fill, type, select, scroll), snact automatically waits for the page to settle and returns a fresh snapshot &mdash; matching Playwright MCP's auto-snapshot behavior while using 4-10x fewer tokens.
 
 For repeated workflows, snact goes further: **record once, replay forever** with zero LLM cost.
 
@@ -71,24 +80,48 @@ snact --version
 snact browser launch --background
 ```
 
-### 2. Snap &mdash; see what's on the page
+### 2. Snap &mdash; structure + content + elements
 
 ```bash
-snact snap https://example.com
+snact snap https://github.com/trending
 ```
 
 ```
-# Example Domain
-@e1 [link] href="https://iana.org/domains/example"
-(1 elements)
+# Trending
+
+## NousResearch / hermes-agent
+> The agent that grows with you | Python | Star
+@e28 [link] href="/NousResearch/hermes-agent"
+
+## microsoft / markitdown
+> Python tool for converting files and office documents to Markdown. | Python | Star
+@e37 [link] href="/microsoft/markitdown"
 ```
 
-Elements are grouped by section headings from the page. Each `@eN` reference is stable until the next snap.
+Section headings group elements. `>` lines summarize content (prices, descriptions, options). Each `@eN` reference is stable until the next snap.
 
-### 3. Read &mdash; understand page content
+### 3. Act &mdash; actions return updated state
 
 ```bash
-snact read https://example.com
+snact click @e28
+```
+
+```
+ok
+---
+# NousResearch/hermes-agent
+> The agent that grows with you. Build AI agents...
+@e1 [link] "Code" href="/NousResearch/hermes-agent"
+@e2 [link] "Issues" href="/NousResearch/hermes-agent/issues"
+...
+```
+
+Every mutation action (click, fill, type, select, scroll) automatically returns a fresh snap. No manual re-snap needed. Use `--no-snap` to disable.
+
+### 4. Read &mdash; full text content
+
+```bash
+snact read https://example.com --focus="main"
 ```
 
 ```
@@ -97,17 +130,7 @@ This domain is for use in documentation examples.
 Learn more
 ```
 
-`snap` tells you what you can **do**. `read` tells you what you can **see**. Together they replace screenshot loops.
-
-### 4. Act &mdash; interact with elements
-
-```bash
-snact fill @e2 "user@example.com"
-snact fill @e3 "password"
-snact click @e1
-snact wait navigation
-snact snap                          # re-snap after navigation
-```
+`snap` gives you structure + elements + summaries. `read` gives you full text when you need deeper content.
 
 ### 5. Session &mdash; persist browser state
 
@@ -121,8 +144,8 @@ snact session load github           # restore later
 ```bash
 snact record start login-flow
 snact snap https://app.example.com/login
-snact fill @e1 "user@example.com"
-snact click @e3
+snact fill @e1 "user@example.com" --no-snap
+snact click @e3 --no-snap
 snact wait navigation
 snact record stop
 
@@ -134,13 +157,13 @@ snact replay login-flow
 
 | Command | Description |
 |---------|-------------|
-| `snap [url]` | Extract interactable elements with section context |
-| `read [url]` | Read visible text as structured markdown |
-| `click <@ref>` | Click an element |
-| `fill <@ref> <value>` | Set input field value (clears existing) |
-| `type <@ref> <text>` | Type text character by character (for autocomplete) |
-| `select <@ref> <value>` | Select option in a dropdown |
-| `scroll [direction]` | Scroll the page |
+| `snap [url]` | Page structure + section summaries + interactable elements |
+| `read [url]` | Full visible text as structured markdown |
+| `click <@ref>` | Click element (returns updated snap) |
+| `fill <@ref> <value>` | Set input value (returns updated snap) |
+| `type <@ref> <text>` | Type character by character (returns updated snap) |
+| `select <@ref> <value>` | Select dropdown option (returns updated snap) |
+| `scroll [direction]` | Scroll page (returns updated snap) |
 | `screenshot [--file]` | Capture page as PNG |
 | `wait <condition>` | Wait for navigation, CSS selector, or timeout (ms) |
 | `session save\|load\|list\|delete` | Manage browser sessions |
@@ -154,12 +177,38 @@ snact replay login-flow
 
 ```
 --port <PORT>     Chrome debugging port [default: 9222]
---output <FMT>    Output format: text, json, ndjson [default: auto-detect]
+--output <FMT>    Output format: text, json, ndjson [default: text]
 --dry-run         Preview action without executing
+--no-snap         Skip automatic re-snap after actions
 --lang <LANG>     Accept-Language header [default: en-US]
 --focus <SEL>     CSS selector to limit scope (snap/read)
 --verbose         Debug logging
 ```
+
+## Snap output format
+
+snact's snap output is designed for LLM comprehension:
+
+```
+## Section Heading
+> Content summary: prices, options, descriptions (up to 300 chars)
+@e1 [role] "label" id="..." href="..." expanded desc="Opens in new tab"
+@e2 [input:text] "Search" placeholder="..." required
+```
+
+| Component | Purpose |
+|-----------|---------|
+| `## Heading` | Page section structure (h1-h6) |
+| `> summary` | Key text content from that section |
+| `@eN` | Stable element reference for actions |
+| `[role]` | Semantic role (button, link, textbox, etc.) |
+| `"label"` | Accessible name |
+| `id=`, `href=` | Key attributes |
+| `expanded`, `collapsed` | Dropdown/accordion state |
+| `selected` | Active tab/option |
+| `required`, `readonly` | Form field constraints |
+| `desc="..."` | Accessibility description |
+| `— nearby text` | Structurally related content |
 
 ## AI agent integration
 
@@ -170,7 +219,7 @@ snact works as a native CLI tool &mdash; no MCP configuration needed:
 ```bash
 snact browser launch --background
 claude
-# "Use snact to check my GitHub PR review queue"
+# "Use snact to find the MacBook Pro M4 Pro price on apple.com"
 ```
 
 ### MCP server
@@ -191,10 +240,7 @@ For Claude Desktop or any MCP client:
 ### Piped / scripted
 
 ```bash
-# Auto-detects JSON when piped
-snact snap https://example.com | jq '.elements | keys[]'
-
-# NDJSON streaming
+snact snap https://example.com --output=json | jq '.elements | keys[]'
 snact snap https://example.com --output=ndjson
 ```
 
@@ -210,7 +256,7 @@ AI Agent (Claude, GPT, ...)
 │  snact-core   Domain logic          │
 │  ┌─────┐ ┌────┐ ┌───────┐ ┌─────┐  │
 │  │Snap │ │Read│ │Action │ │Rec/ │  │
-│  │     │ │    │ │       │ │Play │  │
+│  │     │ │    │ │+ snap │ │Play │  │
 │  └──┬──┘ └──┬─┘ └───┬───┘ └──┬──┘  │
 │     └───┬───┘       │        │     │
 │    Element Map   Session     │     │
@@ -225,25 +271,33 @@ AI Agent (Claude, GPT, ...)
        └─────────────┘
 ```
 
-**Three-crate workspace** &mdash; `cdp` handles Chrome protocol, `core` is the library, `cli` is a thin shell.
-
 ### How contextual snap works
 
 1. **`DOMSnapshot.captureSnapshot`** &mdash; Full flattened DOM including Shadow DOM
-2. **`Accessibility.getFullAXTree`** &mdash; Semantic roles, names, properties
+2. **`Accessibility.getFullAXTree`** &mdash; Semantic roles, names, descriptions, properties
 3. **Merge** &mdash; Join DOM nodes with AX nodes by `backendNodeId`
-4. **Extract context** &mdash; Collect headings (h1-h6) and text blocks from the snapshot
+4. **Extract context** &mdash; Headings, text blocks (DOM + JS fallback for SPAs)
 5. **Filter** &mdash; Keep only interactable elements, exclude hidden/aria-hidden
-6. **Compress** &mdash; Assign `@eN` refs, group by section headings, append nearby text
+6. **Compress** &mdash; Group by section headings, add content summaries, assign `@eN` refs
 
-Result: the LLM sees page structure **and** actionable elements in one call.
+### Auto re-snap after actions
+
+Every mutation action (click, fill, type, select, scroll) automatically:
+
+1. Executes the action via CDP
+2. **Waits for settle** &mdash; detects navigation (waits for page load, 3s timeout) or SPA mutation (300ms settle)
+3. **Takes a fresh snap** on the same transport connection
+4. Returns `ok\n---\n{snap output}` so the LLM sees updated state in one turn
+
+This matches Playwright MCP's auto-snapshot behavior while using 4-10x fewer tokens.
 
 ### Design decisions
 
-- **Hand-written CDP types** over generated bindings. snact needs ~25 commands; hand-writing keeps binary small and compile times under 30s.
-- **Disk-based state** between invocations. snact connects, works, exits. Element maps, sessions, and workflows persist as JSON.
-- **`backendNodeId`** as element identifier &mdash; stable within a page load. Selector hints stored as backup for replay self-healing.
-- **Single-threaded tokio** &mdash; snact does one thing at a time.
+- **Hand-written CDP types** over generated bindings &mdash; ~25 commands, fast compile
+- **Disk-based state** between invocations &mdash; element maps, sessions, workflows as JSON
+- **`backendNodeId`** as element identifier &mdash; stable within a page load, selector hints for replay
+- **Text output by default** &mdash; optimized for LLM comprehension, not JSON parsing
+- **Single-threaded tokio** &mdash; one thing at a time
 
 ## Data storage
 
