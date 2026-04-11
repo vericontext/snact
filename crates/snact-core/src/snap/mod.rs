@@ -53,8 +53,8 @@ pub async fn execute(
             .await?;
     }
 
-    // Extract elements
-    let raw_elements = extractor::extract(transport).await?;
+    // Extract elements and page context
+    let (raw_elements, page_context) = extractor::extract(transport).await?;
 
     // Resolve focus bounds if --focus was provided
     let focus_bounds = if let Some(selector) = focus {
@@ -68,8 +68,8 @@ pub async fn execute(
     // Filter to interactable elements (optionally constrained to focus bounds)
     let filtered = filter::filter_elements(raw_elements, focus_bounds);
 
-    // Compress into output format and build element map
-    let (output, element_map) = compressor::compress(filtered);
+    // Compress into output format and build element map (with page context)
+    let (output, element_map) = compressor::compress(filtered, Some(&page_context));
     let element_count = element_map.elements.len();
 
     // Persist element map

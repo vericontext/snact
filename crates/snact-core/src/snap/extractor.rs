@@ -21,10 +21,54 @@ pub struct RawElement {
     pub ax_properties: HashMap<String, String>,
 }
 
+/// Contextual information extracted from the page structure.
+/// Maps each element's node_index to its surrounding context.
+#[derive(Debug, Default)]
+pub struct PageContext {
+    /// Headings in document order: (node_index, level, text).
+    pub headings: Vec<(usize, u8, String)>,
+    /// Visible text blocks in document order: (node_index, text).
+    /// Includes text from paragraphs, list items, table cells, and bare text nodes.
+    pub text_blocks: Vec<(usize, String)>,
+}
+
+impl PageContext {
+    /// Find the heading that applies to a given node_index
+    /// (the last heading before this node in document order).
+    pub fn heading_for(&self, node_index: usize) -> Option<(u8, &str)> {
+        self.headings
+            .iter()
+            .rev()
+            .find(|(idx, _, _)| *idx < node_index)
+            .map(|(_, level, text)| (*level, text.as_str()))
+    }
+
+    /// Collect brief surrounding text near a node_index.
+    /// Returns up to `max_chars` of text from blocks near the element.
+    pub fn nearby_text(&self, node_index: usize, max_chars: usize) -> String {
+        // Find text blocks within a reasonable index distance
+        let mut nearby: Vec<&str> = Vec::new();
+        let mut total_len = 0;
+        for (idx, text) in &self.text_blocks {
+            // Only look at text within ±50 node indices (heuristic for "nearby" in document order)
+            let dist = (*idx as isize - node_index as isize).unsigned_abs();
+            if dist <= 50 && !text.is_empty() {
+                if total_len + text.len() > max_chars {
+                    break;
+                }
+                nearby.push(text.as_str());
+                total_len += text.len();
+            }
+        }
+        nearby.join(" ")
+    }
+}
+
 /// Extract all elements from the page by merging DOMSnapshot and Accessibility data.
+/// Also extracts page context (headings, text blocks) for contextual snap output.
 pub async fn extract(
     transport: &CdpTransport,
-) -> Result<Vec<RawElement>, snact_cdp::CdpTransportError> {
+) -> Result<(Vec<RawElement>, PageContext), snact_cdp::CdpTransportError> {
     // Enable Page events for proper load detection
     transport.send(&snact_cdp::commands::PageEnable {}).await?;
 
@@ -56,6 +100,7 @@ pub async fn extract(
 
     // Process each document in the snapshot
     let mut elements = Vec::new();
+    let mut context = PageContext::default();
 
     for doc in &snapshot.documents {
         let strings = &snapshot.strings;
@@ -75,6 +120,20 @@ pub async fn extract(
             }
         }
 
+        // Build layout text lookup: node_index -> rendered text
+        let mut layout_text: HashMap<usize, String> = HashMap::new();
+        for (i, &node_idx) in layout.node_index.iter().enumerate() {
+            let text_idx = layout.text.get(i).copied().unwrap_or(-1);
+            if text_idx >= 0 {
+                if let Some(text) = strings.get(text_idx as usize) {
+                    let trimmed = text.trim();
+                    if !trimmed.is_empty() {
+                        layout_text.insert(node_idx as usize, trimmed.to_string());
+                    }
+                }
+            }
+        }
+
         // Build computed styles lookup for visibility
         let mut style_values: HashMap<usize, Vec<String>> = HashMap::new();
         for (i, &node_idx) in layout.node_index.iter().enumerate() {
@@ -87,13 +146,18 @@ pub async fn extract(
             }
         }
 
+        // Build children map for text collection
+        let mut children_map: HashMap<usize, Vec<usize>> = HashMap::new();
+        for (i, &parent_idx) in nodes.parent_index.iter().enumerate() {
+            if parent_idx >= 0 {
+                children_map.entry(parent_idx as usize).or_default().push(i);
+            }
+        }
+
         let node_count = nodes.node_name.len();
 
         for i in 0..node_count {
             let backend_id = *nodes.backend_node_id.get(i).unwrap_or(&0);
-            if backend_id == 0 {
-                continue;
-            }
 
             let tag = nodes
                 .node_name
@@ -103,14 +167,45 @@ pub async fn extract(
                 .unwrap_or_default()
                 .to_lowercase();
 
+            let bounds = layout_bounds.get(&i).copied();
+            let is_visible = check_visibility(&style_values.get(&i), bounds);
+
+            // --- Collect page context: headings and text blocks ---
+            if is_visible {
+                // Headings (h1-h6): collect for section markers
+                if tag.len() == 2 && tag.starts_with('h') {
+                    if let Some(level) = tag[1..].parse::<u8>().ok().filter(|&l| l >= 1 && l <= 6) {
+                        let heading_text = collect_child_text(i, nodes, strings, &children_map);
+                        if !heading_text.is_empty() {
+                            context
+                                .headings
+                                .push((i, level, truncate_str(&heading_text, 120)));
+                        }
+                    }
+                }
+
+                // Text blocks: p, li, td, th, span, label with visible text
+                let is_text_tag = matches!(
+                    tag.as_str(),
+                    "p" | "li" | "td" | "th" | "span" | "label" | "dd"
+                );
+                if is_text_tag {
+                    if let Some(text) = layout_text.get(&i) {
+                        let clean = text.split_whitespace().collect::<Vec<_>>().join(" ");
+                        if clean.len() > 1 {
+                            context.text_blocks.push((i, truncate_str(&clean, 150)));
+                        }
+                    }
+                }
+            }
+
+            // --- Continue building interactable elements ---
+            if backend_id == 0 {
+                continue;
+            }
+
             // Parse attributes
             let attrs = parse_attributes(nodes.attributes.get(i), strings);
-
-            // Get bounds
-            let bounds = layout_bounds.get(&i).copied();
-
-            // Check visibility from computed styles
-            let is_visible = check_visibility(&style_values.get(&i), bounds);
 
             // Get accessibility info
             let (role, name, value, ax_props) =
@@ -140,7 +235,55 @@ pub async fn extract(
         }
     }
 
-    Ok(elements)
+    Ok((elements, context))
+}
+
+/// Collect text content from child text nodes (for heading text).
+fn collect_child_text(
+    parent_idx: usize,
+    nodes: &snact_cdp::commands::NodeTreeSnapshot,
+    strings: &[String],
+    children_map: &HashMap<usize, Vec<usize>>,
+) -> String {
+    let mut text = String::new();
+    if let Some(children) = children_map.get(&parent_idx) {
+        for &child_idx in children {
+            // text node (node_type 3)
+            let node_type = nodes.node_type.get(child_idx).copied().unwrap_or(0);
+            if node_type == 3 {
+                let val_idx = nodes.node_value.get(child_idx).copied().unwrap_or(-1);
+                if val_idx >= 0 {
+                    if let Some(s) = strings.get(val_idx as usize) {
+                        let trimmed = s.trim();
+                        if !trimmed.is_empty() {
+                            if !text.is_empty() {
+                                text.push(' ');
+                            }
+                            text.push_str(trimmed);
+                        }
+                    }
+                }
+            } else {
+                // Recurse into child elements
+                let child_text = collect_child_text(child_idx, nodes, strings, children_map);
+                if !child_text.is_empty() {
+                    if !text.is_empty() {
+                        text.push(' ');
+                    }
+                    text.push_str(&child_text);
+                }
+            }
+        }
+    }
+    text
+}
+
+fn truncate_str(s: &str, max: usize) -> String {
+    if s.len() <= max {
+        s.to_string()
+    } else {
+        format!("{}...", &s[..max.min(s.len()) - 3])
+    }
 }
 
 fn parse_attributes(

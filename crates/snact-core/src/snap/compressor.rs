@@ -1,16 +1,35 @@
 //! Compresses filtered elements into token-minimal output format.
 //! Output format: `@e1 [button] "Sign In"`
 
-use super::extractor::RawElement;
+use super::extractor::{PageContext, RawElement};
 use crate::element_map::{ElementEntry, ElementMap};
 
 /// Compress filtered elements into output string and element map.
-pub fn compress(elements: Vec<RawElement>) -> (String, ElementMap) {
+/// When `context` is provided, elements are grouped by section headings
+/// and enriched with nearby text for AI comprehension.
+pub fn compress(elements: Vec<RawElement>, context: Option<&PageContext>) -> (String, ElementMap) {
     let mut map = ElementMap::new();
     let mut lines = Vec::new();
+    let mut current_heading: Option<&str> = None;
 
-    for el in elements {
-        let selector_hint = build_selector_hint(&el);
+    for el in &elements {
+        // Insert section heading if it changed
+        if let Some(ctx) = context {
+            if let Some((level, heading_text)) = ctx.heading_for(el.node_index) {
+                let is_new = current_heading.map_or(true, |cur| cur != heading_text);
+                if is_new {
+                    current_heading = Some(heading_text);
+                    let hashes = "#".repeat(level as usize);
+                    // Add blank line before heading (except first)
+                    if !lines.is_empty() {
+                        lines.push(String::new());
+                    }
+                    lines.push(format!("{hashes} {heading_text}"));
+                }
+            }
+        }
+
+        let selector_hint = build_selector_hint(el);
 
         let entry = ElementEntry {
             backend_node_id: el.backend_node_id,
@@ -26,14 +45,19 @@ pub fn compress(elements: Vec<RawElement>) -> (String, ElementMap) {
         };
 
         let ref_id = map.insert(entry.clone());
-        let line = format_element_line(&ref_id, &entry, &el);
+        let line = format_element_line(&ref_id, &entry, el, context);
         lines.push(line);
     }
 
     (lines.join("\n"), map)
 }
 
-fn format_element_line(ref_id: &str, entry: &ElementEntry, raw: &RawElement) -> String {
+fn format_element_line(
+    ref_id: &str,
+    entry: &ElementEntry,
+    raw: &RawElement,
+    context: Option<&PageContext>,
+) -> String {
     let mut parts = Vec::new();
 
     // @eN
@@ -53,6 +77,20 @@ fn format_element_line(ref_id: &str, entry: &ElementEntry, raw: &RawElement) -> 
     let extras = format_extras(raw);
     if !extras.is_empty() {
         parts.push(extras);
+    }
+
+    // Contextual text — brief nearby text that helps understand what this element relates to
+    if let Some(ctx) = context {
+        let nearby = ctx.nearby_text(raw.node_index, 100);
+        if !nearby.is_empty() && nearby != label {
+            // Only add if it provides new information beyond the label
+            let nearby_trimmed = if nearby.len() > 80 {
+                format!("{}...", &nearby[..77])
+            } else {
+                nearby
+            };
+            parts.push(format!("— {nearby_trimmed}"));
+        }
     }
 
     parts.join(" ")
