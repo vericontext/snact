@@ -34,7 +34,7 @@ pub fn run_stop(fmt: &str) -> Result<()> {
     })?;
 
     let workflow = Recorder::finalize(state);
-    workflow.save()?;
+    let saved_path = workflow.save()?;
     Recorder::clear_state()?;
 
     if fmt == "json" {
@@ -45,13 +45,15 @@ pub fn run_stop(fmt: &str) -> Result<()> {
                 "action": "record_stop",
                 "name": workflow.name,
                 "steps": workflow.steps.len(),
+                "path": saved_path.display().to_string(),
             })
         );
     } else {
         println!(
-            "Recording saved: {} ({} steps)",
+            "Recording saved: {} ({} steps)\n  → {}",
             workflow.name,
-            workflow.steps.len()
+            workflow.steps.len(),
+            saved_path.display()
         );
     }
     Ok(())
@@ -60,12 +62,16 @@ pub fn run_stop(fmt: &str) -> Result<()> {
 pub fn run_list(fmt: &str) -> Result<()> {
     let workflows = Workflow::list()?;
     if fmt == "json" {
-        println!("{}", serde_json::json!({"workflows": workflows}));
+        let items: Vec<_> = workflows
+            .iter()
+            .map(|(name, scope)| serde_json::json!({"name": name, "scope": scope}))
+            .collect();
+        println!("{}", serde_json::json!({"workflows": items}));
     } else if workflows.is_empty() {
         println!("No recorded workflows");
     } else {
-        for name in workflows {
-            println!("{name}");
+        for (name, scope) in &workflows {
+            println!("{name}  ({scope})");
         }
     }
     Ok(())
