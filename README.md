@@ -38,7 +38,7 @@ ok
 
 Every action automatically returns a fresh page snapshot &mdash; no manual re-snap needed.
 
-## Benchmark
+## Performance comparison
 
 https://github.com/user-attachments/assets/544718bf-747a-446a-896a-f2c5c376f3d7
 
@@ -51,7 +51,7 @@ https://github.com/user-attachments/assets/544718bf-747a-446a-896a-f2c5c376f3d7
 | **Message tokens** | **18.8K** | 20.1K | 73.4K |
 | **Data accuracy** | Correct | Correct | Correct |
 
-snact finished in half the time with half the tokens. All three produced identical data. See [detailed analysis](#detailed-benchmark-analysis).
+snact finished in half the time with half the tokens. All three produced identical data. See [detailed analysis](#detailed-analysis).
 
 ### Record & Replay
 
@@ -59,7 +59,7 @@ https://github.com/user-attachments/assets/513519ee-93e8-49f5-b398-d3d35dd2ebde
 
 <sup>Played at 8x speed. First: record (2m 18s real time). Then: replay (47s real time).</sup>
 
-Same benchmark task, recorded once and replayed. The replay skips all LLM reasoning &mdash; it re-executes the recorded commands directly against Chrome and returns fresh data.
+Same task, recorded once and replayed. The replay skips all LLM reasoning &mdash; it re-executes the recorded commands directly against Chrome and returns fresh data.
 
 | | Record (first run) | Replay |
 |--|---------------------|--------|
@@ -380,7 +380,7 @@ snact/
 
 Workflows save to project scope when `.snact/` exists, otherwise user scope. On load, project scope takes priority.
 
-## Detailed benchmark analysis
+## Detailed analysis
 
 > Task: Visit npmjs.com for 10 React state management libraries (zustand, jotai, recoil, valtio, mobx, redux, xstate, effector, nanostores, legend-state). Collect weekly downloads, last publish date, unpacked size, and dependencies.
 
