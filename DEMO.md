@@ -83,59 +83,57 @@ For international sites (e.g. Amazon showing KRW), use `--locale=en-US` to force
 
 ### Demo 3: Record & Replay — teach once, run forever
 
-This demo shows the full loop: Claude Code records a workflow interactively, then replays it on demand with zero LLM tokens.
+This demo uses the same benchmark task from the README: visit npmjs.com for 10 React state management libraries and collect stats. First time costs ~2-3 minutes of LLM reasoning. Every replay after that: zero tokens, ~10 seconds.
 
-**Step 1 — record (Claude Code does it, you watch):**
+**Step 1 — record (Claude Code does the work, you watch):**
 
 Prompt:
 ```
-Use snact to record a workflow called "npm-zustand" that checks the
-zustand package page on npmjs.com — version and last publish date.
+Use snact to record a workflow called "npm-react-state" that visits
+npmjs.com for these 10 libraries: zustand, jotai, recoil, valtio,
+mobx, redux, xstate, effector, nanostores, legend-state.
+For each, snap the page and read the sidebar stats.
 ```
 
-What Claude Code runs:
+Claude Code runs ~20 commands (snap + read per package), all captured automatically:
 ```bash
-snact record start npm-zustand
+snact record start npm-react-state
 snact snap https://www.npmjs.com/package/zustand
+snact read --focus "aside"
+snact snap https://www.npmjs.com/package/jotai
+snact read --focus "aside"
+# ... 8 more packages ...
 snact record stop
-# Recording saved: npm-zustand (1 steps)
-#   → .snact/workflows/npm-zustand.json
+# Recording saved: npm-react-state (20 steps)
+#   → .snact/workflows/npm-react-state.json
 ```
 
-The snap output already surfaces version and publish date in the page header — no additional read needed.
+This first run takes ~2-3 minutes. Claude navigates 10 pages, reads stats, builds a comparison table.
 
-**Step 2 — list to confirm:**
-
-```bash
-snact record list
-# npm-zustand  (project)
-```
-
-**Step 3 — replay (next session, zero LLM calls):**
+**Step 2 — replay (next day, zero LLM cost):**
 
 Prompt:
 ```
-Replay npm-zustand and tell me the current version and publish date.
+Replay npm-react-state and build me an updated comparison table.
 ```
 
 What Claude Code runs:
 ```bash
-snact replay npm-zustand
+snact replay npm-react-state
 ```
 
-```
-Replay complete: 1/1 steps
----
-# zustand
-> 5.0.12 • Public • Published a month ago
-@e1 [link] "Readme"
-@e2 [link] "5.0.12" href="/package/zustand/v/5.0.12"
-...
-```
+All 10 pages are revisited and snapped automatically. Claude reads the replay output and builds the table — no navigation, no page discovery, no trial-and-error.
 
-Claude reads the snap output and answers — one replay call, no navigation, no extra turns.
+**The difference:**
 
-**Same prompt tomorrow:** identical two commands, same speed, zero tokens for the replay itself.
+| | First run (record) | Replay |
+|--|---------------------|--------|
+| **LLM turns** | ~20+ | 1 |
+| **Time** | ~2-3 min | ~10 sec |
+| **Tokens** | ~30K+ | ~5K (reading output only) |
+| **Cost** | Full | Near-zero |
+
+**Day 3, 4, 5...** — same single command, fresh data every time.
 
 ---
 
