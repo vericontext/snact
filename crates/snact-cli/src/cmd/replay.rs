@@ -42,21 +42,19 @@ pub async fn run(port: u16, name: &str, speed: f64, fmt: &str, dry_run: bool) ->
             "Replay complete: {}/{} steps",
             result.completed, result.total_steps
         );
-        // Show last snap result if available
-        if let Some(snap) = &result.last_snap {
+        // Show all snap outputs
+        for snap in &result.snaps {
             println!("---\n{}", snap.output);
-            eprintln!("({} elements)", snap.element_count);
         }
-        // Show last read result if available
-        if let Some(read) = &result.last_read {
+        // Show all read outputs
+        for read in &result.reads {
             println!("---\n{}", read.output);
-            eprintln!("({} lines)", read.line_count);
         }
-        // Show last eval result if available
-        if let Some(eval) = &result.last_eval {
+        // Show all eval outputs
+        for eval in &result.evals {
             match eval {
                 serde_json::Value::String(s) => println!("---\n{s}"),
-                serde_json::Value::Null => println!("---\nundefined"),
+                serde_json::Value::Null => {}
                 other => println!(
                     "---\n{}",
                     serde_json::to_string_pretty(other).unwrap_or_default()

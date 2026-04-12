@@ -26,9 +26,9 @@ pub async fn execute(
         completed: 0,
         warnings: Vec::new(),
         failed_step: None,
-        last_snap: None,
-        last_read: None,
-        last_eval: None,
+        snaps: Vec::new(),
+        reads: Vec::new(),
+        evals: Vec::new(),
     };
 
     let mut prev_ts = 0u64;
@@ -55,7 +55,7 @@ pub async fn execute(
                     &snap::EmulationOptions::default(),
                 )
                 .await?;
-                result.last_snap = Some(snap_result);
+                result.snaps.push(snap_result);
             }
             "click" => {
                 if let Some(ref_id) = step.args.get("ref") {
@@ -100,7 +100,7 @@ pub async fn execute(
                     &snap::EmulationOptions::default(),
                 )
                 .await?;
-                result.last_read = Some(read_result);
+                result.reads.push(read_result);
             }
             "eval" => {
                 if let Some(expression) = step.args.get("expression") {
@@ -113,7 +113,7 @@ pub async fn execute(
                         })
                         .await?;
                     let value = eval_result.result.value.unwrap_or(serde_json::Value::Null);
-                    result.last_eval = Some(value);
+                    result.evals.push(value);
                 }
             }
             "screenshot" => {
@@ -159,10 +159,10 @@ pub struct ReplayResult {
     pub completed: usize,
     pub warnings: Vec<String>,
     pub failed_step: Option<u32>,
-    /// Snap output from the last snap step (if any).
-    pub last_snap: Option<snap::SnapResult>,
-    /// Read output from the last read step (if any).
-    pub last_read: Option<read::ReadResult>,
-    /// Eval output from the last eval step (if any).
-    pub last_eval: Option<serde_json::Value>,
+    /// All snap outputs collected during replay.
+    pub snaps: Vec<snap::SnapResult>,
+    /// All read outputs collected during replay.
+    pub reads: Vec<read::ReadResult>,
+    /// All eval outputs collected during replay.
+    pub evals: Vec<serde_json::Value>,
 }
