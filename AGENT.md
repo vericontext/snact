@@ -125,8 +125,9 @@ Default output is **text** — optimized for LLM comprehension with section head
 
 | Operation | Approximate Tokens |
 |-----------|-------------------|
-| `snap` (full page, with headings) | 200–2000 |
-| `snap --focus "main"` | 50–500 |
+| `snap` (full page, with headings) | 2,000–4,000 |
+| `snap --focus "main"` | 50–600 |
+| `snap` (simple page like login) | 50–200 |
 | `read` (full page) | 200–3000 |
 | `read --focus "main"` | 50–1000 |
 | Action response | ~10 |

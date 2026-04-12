@@ -44,7 +44,7 @@ Every action automatically returns a fresh page snapshot &mdash; no manual re-sn
 |--|----------------|----------------|-------|
 | **Architecture** | Persistent MCP server | Daemon + CLI | **Stateless CLI** |
 | **After click/fill** | Snapshot in response | Manual re-snapshot | **Snapshot in response** |
-| **Tokens per page** | ~3,000 (full A11Y tree) | ~1,000 (YAML snapshot) | **~200-800** (section-grouped) |
+| **Tokens per page** | ~3K-50K (full A11Y tree) | ~1K-13K (YAML snapshot) | **~50-4K** (section-grouped) |
 | **Page understanding** | Raw accessibility tree | YAML refs | **Section headings + content summaries** |
 | **Repeated task cost** | Full LLM call | Full LLM call | **0** (workflow replay) |
 | **Session persistence** | Config-based | `--persistent` flag | `session save/load` (one command) |
@@ -55,11 +55,30 @@ Every action automatically returns a fresh page snapshot &mdash; no manual re-sn
 | **Install** | npm + Playwright | npm + Playwright | **Single binary** (Rust) |
 | **Multi-browser** | Chromium/FF/WebKit | Chromium/FF/WebKit | Chrome only |
 
+<details>
+<summary>Token measurements (click to expand)</summary>
+
+Measured with `wc -c / 4` on actual snap output (1 token &approx; 4 chars):
+
+| Site | snact (full) | snact (`--focus`) |
+|------|-------------|-------------------|
+| example.com | 46 | &mdash; |
+| GitHub Login | 172 | 60 |
+| GitHub Trending | 2,152 | 614 |
+| Hacker News | 2,670 | &mdash; |
+| Apple MacBook Pro | 2,546 | &mdash; |
+| StackOverflow | 4,363 | &mdash; |
+| NYTimes | 2,417 | &mdash; |
+
+Simple pages: 50-200 tokens. Typical pages: 2K-4K. With `--focus`: 60-600.
+
+</details>
+
 ### The core insight
 
-Most browser automation tools dump the entire page state to the LLM on every turn. Playwright CLI reduces this with YAML snapshots (~1K tokens). snact goes further: **section-grouped output with content summaries** (~200-800 tokens) gives the LLM page structure **and** content in one call.
+Most browser automation tools dump the entire page state to the LLM on every turn. snact sends only interactable elements grouped by section headings, with content summaries between them. For typical pages this is **2-4K tokens** vs Playwright's 3-50K.
 
-After every action (click, fill, type, select, scroll), snact automatically waits for the page to settle and returns a fresh snapshot &mdash; matching Playwright MCP's auto-snapshot behavior while using 4-15x fewer tokens.
+After every action (click, fill, type, select, scroll), snact automatically waits for the page to settle and returns a fresh snapshot &mdash; matching Playwright MCP's auto-snapshot behavior.
 
 For repeated workflows, snact is the only tool that offers **record once, replay forever** with zero LLM cost.
 
@@ -191,6 +210,7 @@ snact replay login-flow
 | `browser launch [--profile]` | Manage Chrome (persistent profile by default) |
 | `schema [command]` | JSON Schema introspection |
 | `mcp` | Start MCP server (JSON-RPC over stdio) |
+| `init` | Create AGENT.md in current directory (for Claude Code) |
 
 ### Global flags
 
