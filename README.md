@@ -90,7 +90,7 @@ For repeated workflows, snact is the only tool that offers **record once, replay
 
 https://github.com/user-attachments/assets/544718bf-747a-446a-896a-f2c5c376f3d7
 
-<sup>Both sides played at 16x speed. Left: snact CLI (2m 39s real time). Right: Playwright MCP (5m 17s real time).</sup>
+<sup>Both sides played at 16x speed. Left: Playwright MCP (5m 17s real time). Right: snact CLI (2m 39s real time).</sup>
 
 | | snact CLI | Playwright MCP | Playwright CLI |
 |--|-----------|----------------|----------------|
