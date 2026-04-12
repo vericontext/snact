@@ -65,6 +65,24 @@ snact browser stop                       # stop Chrome
 - `--no-snap` on click/fill/type/select/scroll — skip automatic re-snap (for record/replay)
 - `--focus "selector"` on snap/read — limit scope to a page section
 - `--profile name` on browser launch — use a named persistent profile
+- `--locale "en-US"` — override JS navigator.language (fixes currency display on Amazon etc.)
+- `--geo "lat,lon"` — override geolocation (e.g. "37.7749,-122.4194" for San Francisco)
+- `--user-agent "..."` — override User-Agent string
+
+## Browser Environment (important for international sites)
+
+Sites like Amazon detect your country via IP + JS locale and show local currency (e.g. KRW).
+To force USD pricing and English content:
+
+```bash
+snact snap "https://www.amazon.com/s?k=macbook+pro" --locale="en-US" --geo="37.7749,-122.4194"
+```
+
+- `--locale="en-US"` changes `navigator.language` → Amazon shows USD prices
+- `--geo="37.7749,-122.4194"` overrides `navigator.geolocation` → US location
+- `--lang=en-US` (default) sets HTTP Accept-Language header
+
+**Always use `--locale="en-US"` when accessing US e-commerce sites from non-US locations.**
 
 ## Workflow: Information Extraction
 

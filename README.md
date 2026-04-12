@@ -191,13 +191,16 @@ snact replay login-flow
 ### Global flags
 
 ```
---port <PORT>     Chrome debugging port [default: 9222]
---output <FMT>    Output format: text, json, ndjson [default: text]
---dry-run         Preview action without executing
---no-snap         Skip automatic re-snap after actions
---profile <NAME>  Browser profile name [default: "default"] (browser launch)
---lang <LANG>     Accept-Language header [default: en-US]
---focus <SEL>     CSS selector to limit scope (snap/read)
+--port <PORT>       Chrome debugging port [default: 9222]
+--output <FMT>      Output format: text, json, ndjson [default: text]
+--dry-run           Preview action without executing
+--no-snap           Skip automatic re-snap after actions
+--profile <NAME>    Browser profile name [default: "default"] (browser launch)
+--lang <LANG>       Accept-Language header [default: en-US]
+--locale <LOCALE>   JS navigator.language override (e.g. en-US, ja-JP)
+--geo <LAT,LON>     Geolocation override (e.g. "37.7749,-122.4194")
+--user-agent <UA>   Custom User-Agent string
+--focus <SEL>       CSS selector to limit scope (snap/read)
 --verbose         Debug logging
 ```
 
