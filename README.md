@@ -84,6 +84,35 @@ After every action (click, fill, type, select, scroll), snact automatically wait
 
 For repeated workflows, snact is the only tool that offers **record once, replay forever** with zero LLM cost.
 
+### Real-world benchmark
+
+> **Task:** Visit npmjs.com for 10 React state management libraries (zustand, jotai, recoil, valtio, mobx, redux, xstate, effector, nanostores, legend-state). Collect weekly downloads, last publish date, unpacked size, and dependencies for each. Compile into a comparison table.
+
+https://github.com/user-attachments/assets/544718bf-747a-446a-896a-f2c5c376f3d7
+
+| | snact CLI | Playwright MCP | Playwright CLI |
+|--|-----------|----------------|----------------|
+| **Time** | **2m 39s** | 5m 17s | 5m 10s |
+| **Total tokens** | **34.1K (17%)** | 88K (44%) | 35.4K (18%) |
+| **Message tokens** | **18.8K** | 73.4K | 20.1K |
+| **Data accuracy** | Correct | Correct | Correct |
+
+<details>
+<summary>Detailed analysis (click to expand)</summary>
+
+**Speed:** snact finished in half the time (2m 39s vs ~5m). Both Playwright approaches took similar time (~5m 10-17s).
+
+**Token efficiency:** snact and Playwright CLI used similar total tokens (~34-35K), but Playwright MCP consumed 2.5x more (88K) due to accessibility tree snapshots accumulating in context. MCP's message tokens alone (73.4K) were 3.9x higher than snact's (18.8K).
+
+**Answer quality:** All three produced identical data. Minor format differences:
+- snact: relative dates ("2 years ago"), abbreviated downloads (28.5M), dependency names included
+- Playwright MCP: relative dates, exact download counts (28,515,625), dependency names included
+- Playwright CLI: **absolute dates** (2023-12-23), exact download counts, dependency counts only
+
+**Conclusion:** For multi-page data collection tasks, snact delivers the same results in half the time with half the tokens. The advantage grows with more pages &mdash; Playwright MCP's context accumulation makes it increasingly inefficient at scale.
+
+</details>
+
 ## Installation
 
 ```bash
