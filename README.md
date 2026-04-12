@@ -53,6 +53,20 @@ https://github.com/user-attachments/assets/544718bf-747a-446a-896a-f2c5c376f3d7
 
 snact finished in half the time with half the tokens. All three produced identical data. See [detailed analysis](#detailed-benchmark-analysis).
 
+### Record & Replay
+
+https://github.com/user-attachments/assets/513519ee-93e8-49f5-b398-d3d35dd2ebde
+
+<sup>Played at 8x speed. Left: record (2m 18s real time). Right: replay (47s real time).</sup>
+
+Same benchmark task, recorded once and replayed. The replay skips all LLM reasoning &mdash; it re-executes the recorded commands directly against Chrome and returns fresh data.
+
+| | Record (first run) | Replay |
+|--|---------------------|--------|
+| **Time** | 2m 18s | **47s** |
+| **LLM turns** | ~20+ | **1** |
+| **Data** | Fresh | **Fresh** (re-visits pages) |
+
 ## Why snact?
 
 |  | Playwright MCP | Playwright CLI | snact |
