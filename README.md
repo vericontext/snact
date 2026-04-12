@@ -57,6 +57,27 @@ snact finished in half the time with half the tokens. All three produced identic
 
 **Speed:** Both Playwright approaches took ~5 minutes. snact finished in 2m 39s. **Token efficiency:** snact and Playwright CLI used similar total tokens (~34-35K), but Playwright MCP consumed 2.5x more (88K) due to accessibility tree snapshots accumulating in context. **Answer quality:** All three produced identical data with minor format differences.
 
+<details>
+<summary>Per-page token measurements</summary>
+
+Measured with `wc -c / 4` on actual snap output (1 token &approx; 4 chars):
+
+| Site | snact (full) | snact (`--focus`) |
+|------|-------------|-------------------|
+| example.com | 46 | &mdash; |
+| GitHub Login | 172 | 60 |
+| GitHub Trending | 2,152 | 614 |
+| Hacker News | 2,670 | &mdash; |
+| Apple MacBook Pro | 2,546 | &mdash; |
+| StackOverflow | 4,363 | &mdash; |
+| NYTimes | 2,417 | &mdash; |
+
+Simple pages: 50-200 tokens. Typical pages: 2K-4K. With `--focus`: 60-600.
+
+Playwright token estimates from [scrolltest.medium.com](https://scrolltest.medium.com/playwright-mcp-burns-114k-tokens-per-test-the-new-cli-uses-27k-heres-when-to-use-each-65dabeaac7a0) (MCP ~114K per test session, CLI ~27K). snact numbers are directly measured.
+
+</details>
+
 ### Record & Replay
 
 > **Record task:** Use snact to record a workflow called "npm-react-state" that visits npmjs.com for these 10 libraries. For each, snap the page and read the sidebar stats.
@@ -111,16 +132,14 @@ snact --version
 
 ## Quick start
 
-### 1. Launch Chrome
-
 ```bash
-snact browser launch --background
-# Persistent profile — cookies and login state survive restarts
-# Use --profile=work for separate profiles
-# Use --idle-timeout=30 to auto-stop after 30 min of inactivity
+snact browser launch --background          # 1. start Chrome
+snact snap https://github.com/trending     # 2. page structure + elements
+snact click @e28                           # 3. act (auto re-snap included)
+snact browser stop                         # 4. done
 ```
 
-### 2. Snap &mdash; structure + content + elements
+### snap &mdash; structure + content + elements
 
 ```bash
 snact snap https://github.com/trending
@@ -140,7 +159,7 @@ snact snap https://github.com/trending
 
 Section headings group elements. `>` lines summarize content. Each `@eN` reference is stable until the next snap.
 
-### 3. Act &mdash; actions return updated state
+### act &mdash; actions return updated state
 
 ```bash
 snact click @e28
@@ -158,7 +177,7 @@ ok
 
 Every mutation (click, fill, type, select, scroll) returns a fresh snap. Use `--no-snap` to disable.
 
-### 4. Read &mdash; full text content
+### read &mdash; full text content
 
 ```bash
 snact read https://example.com --focus="main"
@@ -172,7 +191,7 @@ Learn more
 
 `snap` = structure + elements + summaries. `read` = full text when you need more detail.
 
-### 5. Eval &mdash; custom JavaScript
+### eval &mdash; custom JavaScript
 
 When snap/read can't capture dynamic content (e.g. Amazon product cards):
 
@@ -183,14 +202,14 @@ snact eval "JSON.stringify(Array.from(document.querySelectorAll('.product')).map
 })))"
 ```
 
-### 6. Session &mdash; persist browser state
+### session &mdash; persist browser state
 
 ```bash
 snact session save github           # cookies + localStorage
 snact session load github           # restore later
 ```
 
-### 7. Record & Replay &mdash; zero LLM cost
+### record &amp; replay &mdash; zero LLM cost
 
 ```bash
 snact record start login-flow
@@ -200,7 +219,7 @@ snact click @e3 --no-snap
 snact wait navigation
 snact record stop
 
-# Day 2, 3, 4... — no LLM, no tokens, ~100ms
+# Day 2, 3, 4... — no LLM, no tokens
 snact replay login-flow
 ```
 
@@ -360,7 +379,7 @@ Every mutation action (click, fill, type, select, scroll) automatically:
 
 ### Design decisions
 
-- **Hand-written CDP types** over generated bindings &mdash; ~25 commands, fast compile
+- **Hand-written CDP types** over generated bindings &mdash; ~30 commands, fast compile
 - **Disk-based state** between invocations &mdash; element maps, sessions, workflows as JSON
 - **`backendNodeId`** as element identifier &mdash; stable within a page load, selector hints for replay
 - **Text output by default** &mdash; optimized for LLM comprehension, not JSON parsing
@@ -390,27 +409,6 @@ snact/
 ```
 
 Workflows save to project scope when `.snact/` exists, otherwise user scope. On load, project scope takes priority.
-
-<details>
-<summary>Per-page token measurements</summary>
-
-Measured with `wc -c / 4` on actual snap output (1 token &approx; 4 chars):
-
-| Site | snact (full) | snact (`--focus`) |
-|------|-------------|-------------------|
-| example.com | 46 | &mdash; |
-| GitHub Login | 172 | 60 |
-| GitHub Trending | 2,152 | 614 |
-| Hacker News | 2,670 | &mdash; |
-| Apple MacBook Pro | 2,546 | &mdash; |
-| StackOverflow | 4,363 | &mdash; |
-| NYTimes | 2,417 | &mdash; |
-
-Simple pages: 50-200 tokens. Typical pages: 2K-4K. With `--focus`: 60-600.
-
-Playwright token estimates from [scrolltest.medium.com](https://scrolltest.medium.com/playwright-mcp-burns-114k-tokens-per-test-the-new-cli-uses-27k-heres-when-to-use-each-65dabeaac7a0) (MCP ~114K per test session, CLI ~27K). snact numbers are directly measured.
-
-</details>
 
 ## Contributing
 
