@@ -25,6 +25,7 @@ pub async fn execute(
         completed: 0,
         warnings: Vec::new(),
         failed_step: None,
+        last_snap: None,
     };
 
     let mut prev_ts = 0u64;
@@ -43,7 +44,7 @@ pub async fn execute(
             "snap" => {
                 let url = step.args.get("url").map(|s| s.as_str());
                 let focus = step.args.get("focus").map(|s| s.as_str());
-                snap::execute(
+                let snap_result = snap::execute(
                     transport,
                     url,
                     focus,
@@ -51,6 +52,7 @@ pub async fn execute(
                     &snap::EmulationOptions::default(),
                 )
                 .await?;
+                result.last_snap = Some(snap_result);
             }
             "click" => {
                 if let Some(ref_id) = step.args.get("ref") {
@@ -122,4 +124,6 @@ pub struct ReplayResult {
     pub completed: usize,
     pub warnings: Vec<String>,
     pub failed_step: Option<u32>,
+    /// Snap output from the last snap step (if any).
+    pub last_snap: Option<snap::SnapResult>,
 }

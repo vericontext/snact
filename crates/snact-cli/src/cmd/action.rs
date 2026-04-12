@@ -1,4 +1,13 @@
 use anyhow::Result;
+use std::collections::HashMap;
+
+/// Record a command step if recording is active.
+fn maybe_record(command: &str, args: HashMap<String, String>) {
+    if let Ok(Some(mut state)) = snact_core::record::recorder::Recorder::load_state() {
+        snact_core::record::recorder::Recorder::record_step(&mut state, command, args, None);
+        let _ = snact_core::record::recorder::Recorder::save_state(&state);
+    }
+}
 
 fn ok(fmt: &str, action: &str, extra: Option<(&str, &str)>) {
     if fmt == "json" {
@@ -78,6 +87,7 @@ pub async fn run_click(
     }
     let transport = snact_cdp::connect(port).await?;
     snact_core::action::click::execute(&transport, ref_id).await?;
+    maybe_record("click", HashMap::from([("ref".into(), ref_id.into())]));
     ok_with_snap(&transport, fmt, "click", lang, no_snap, emu).await;
     Ok(())
 }
@@ -103,6 +113,13 @@ pub async fn run_fill(
     }
     let transport = snact_cdp::connect(port).await?;
     snact_core::action::fill::execute(&transport, ref_id, value).await?;
+    maybe_record(
+        "fill",
+        HashMap::from([
+            ("ref".into(), ref_id.into()),
+            ("value".into(), value.into()),
+        ]),
+    );
     ok_with_snap(&transport, fmt, "fill", lang, no_snap, emu).await;
     Ok(())
 }
@@ -128,6 +145,10 @@ pub async fn run_type(
     }
     let transport = snact_cdp::connect(port).await?;
     snact_core::action::type_text::execute(&transport, ref_id, text).await?;
+    maybe_record(
+        "type",
+        HashMap::from([("ref".into(), ref_id.into()), ("text".into(), text.into())]),
+    );
     ok_with_snap(&transport, fmt, "type", lang, no_snap, emu).await;
     Ok(())
 }
@@ -153,6 +174,13 @@ pub async fn run_select(
     }
     let transport = snact_cdp::connect(port).await?;
     snact_core::action::select::execute(&transport, ref_id, value).await?;
+    maybe_record(
+        "select",
+        HashMap::from([
+            ("ref".into(), ref_id.into()),
+            ("value".into(), value.into()),
+        ]),
+    );
     ok_with_snap(&transport, fmt, "select", lang, no_snap, emu).await;
     Ok(())
 }
@@ -178,6 +206,11 @@ pub async fn run_scroll(
     }
     let transport = snact_cdp::connect(port).await?;
     snact_core::action::scroll::execute(&transport, direction, amount).await?;
+    let mut scroll_args = HashMap::from([("direction".into(), direction.into())]);
+    if let Some(a) = amount {
+        scroll_args.insert("amount".into(), a.to_string());
+    }
+    maybe_record("scroll", scroll_args);
     ok_with_snap(&transport, fmt, "scroll", lang, no_snap, emu).await;
     Ok(())
 }

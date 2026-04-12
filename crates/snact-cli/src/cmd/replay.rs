@@ -42,6 +42,11 @@ pub async fn run(port: u16, name: &str, speed: f64, fmt: &str, dry_run: bool) ->
             "Replay complete: {}/{} steps",
             result.completed, result.total_steps
         );
+        // Show last snap result if available
+        if let Some(snap) = &result.last_snap {
+            println!("---\n{}", snap.output);
+            eprintln!("({} elements)", snap.element_count);
+        }
         for warning in &result.warnings {
             eprintln!("warning: {warning}");
         }
