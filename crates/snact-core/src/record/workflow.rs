@@ -15,6 +15,8 @@ use serde::{Deserialize, Serialize};
 pub struct Workflow {
     pub version: u32,
     pub name: String,
+    /// How to replay this workflow. Agents should run this command directly.
+    pub replay_command: String,
     pub created_at: String,
     pub steps: Vec<WorkflowStep>,
 }

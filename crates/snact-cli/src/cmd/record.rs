@@ -71,7 +71,7 @@ pub fn run_list(fmt: &str) -> Result<()> {
         println!("No recorded workflows");
     } else {
         for (name, scope) in &workflows {
-            println!("{name}  ({scope})");
+            println!("{name}  ({scope})  →  snact replay {name}");
         }
     }
     Ok(())

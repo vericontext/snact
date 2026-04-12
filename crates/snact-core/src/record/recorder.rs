@@ -62,9 +62,11 @@ impl Recorder {
 
     /// Finalize recording into a workflow.
     pub fn finalize(state: RecorderState) -> Workflow {
+        let replay_command = format!("snact replay {}", state.name);
         Workflow {
             version: 1,
             name: state.name,
+            replay_command,
             created_at: state.created_at.clone(),
             steps: state.steps,
         }
