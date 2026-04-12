@@ -40,24 +40,28 @@ Every action automatically returns a fresh page snapshot &mdash; no manual re-sn
 
 ## Why snact?
 
-|  | Playwright MCP | snact |
-|--|----------------|-------|
-| **After click/fill** | Returns snapshot automatically | **Returns snapshot automatically** |
-| **Tokens per page** | ~3,000 (full accessibility tree) | **~200-800** (section-grouped) |
-| **Page understanding** | Raw DOM tree | **Section headings + content summaries** |
-| **Repeated task cost** | Full LLM call each time | **0** (workflow replay) |
-| **Session persistence** | Config-based | `session save/load` (one command) |
-| **Cron automation** | Requires LLM API | Shell one-liner |
-| **Shadow DOM** | Limited | **Full** (CDP direct) |
-| **Install** | npm + browser binary | **Single binary** |
+|  | Playwright MCP | Playwright CLI | snact |
+|--|----------------|----------------|-------|
+| **Architecture** | Persistent MCP server | Daemon + CLI | **Stateless CLI** |
+| **After click/fill** | Snapshot in response | Manual re-snapshot | **Snapshot in response** |
+| **Tokens per page** | ~3,000 (full A11Y tree) | ~1,000 (YAML snapshot) | **~200-800** (section-grouped) |
+| **Page understanding** | Raw accessibility tree | YAML refs | **Section headings + content summaries** |
+| **Repeated task cost** | Full LLM call | Full LLM call | **0** (workflow replay) |
+| **Session persistence** | Config-based | `--persistent` flag | `session save/load` (one command) |
+| **Cron automation** | Requires LLM API | Requires LLM API | **Shell one-liner** |
+| **Custom JS execution** | `browser_evaluate` | `eval` / `run-code` | **`eval`** |
+| **Locale/Geo override** | Via `run-code` | Via config | **`--locale` / `--geo` flags** |
+| **Shadow DOM** | Limited | Limited | **Full** (CDP direct) |
+| **Install** | npm + Playwright | npm + Playwright | **Single binary** (Rust) |
+| **Multi-browser** | Chromium/FF/WebKit | Chromium/FF/WebKit | Chrome only |
 
 ### The core insight
 
-Most browser automation tools dump the entire page state on every turn. snact sends only what matters: interactable elements grouped by section headings, with content summaries between them. The LLM sees structure **and** content in one call.
+Most browser automation tools dump the entire page state to the LLM on every turn. Playwright CLI reduces this with YAML snapshots (~1K tokens). snact goes further: **section-grouped output with content summaries** (~200-800 tokens) gives the LLM page structure **and** content in one call.
 
-After every action (click, fill, type, select, scroll), snact automatically waits for the page to settle and returns a fresh snapshot &mdash; matching Playwright MCP's auto-snapshot behavior while using 4-10x fewer tokens.
+After every action (click, fill, type, select, scroll), snact automatically waits for the page to settle and returns a fresh snapshot &mdash; matching Playwright MCP's auto-snapshot behavior while using 4-15x fewer tokens.
 
-For repeated workflows, snact goes further: **record once, replay forever** with zero LLM cost.
+For repeated workflows, snact is the only tool that offers **record once, replay forever** with zero LLM cost.
 
 ## Installation
 
