@@ -1,0 +1,69 @@
+# snact installer for Windows
+# Usage: irm https://raw.githubusercontent.com/vericontext/snact/main/install.ps1 | iex
+
+$ErrorActionPreference = "Stop"
+
+$Repo = "vericontext/snact"
+$BinaryName = "snact.exe"
+$InstallDir = "$env:LOCALAPPDATA\snact\bin"
+
+function Get-LatestVersion {
+    # Use GitHub redirect (no API rate limit)
+    try {
+        $response = Invoke-WebRequest -Uri "https://github.com/$Repo/releases/latest" -MaximumRedirection 0 -ErrorAction SilentlyContinue
+    } catch {
+        $response = $_.Exception.Response
+    }
+    if ($response.Headers.Location) {
+        return ($response.Headers.Location -split '/')[-1]
+    }
+    # Fallback: API
+    $release = Invoke-RestMethod -Uri "https://api.github.com/repos/$Repo/releases/latest"
+    return $release.tag_name
+}
+
+Write-Host "==> Detecting platform..." -ForegroundColor Green
+$arch = if ([Environment]::Is64BitOperatingSystem) { "x86_64" } else { "x86" }
+$assetName = "snact-windows-$arch"
+Write-Host "==> Platform: $assetName" -ForegroundColor Green
+
+$version = if ($env:SNACT_VERSION) { $env:SNACT_VERSION } else { Get-LatestVersion }
+Write-Host "==> Installing snact $version" -ForegroundColor Green
+
+$url = "https://github.com/$Repo/releases/download/$version/$assetName.zip"
+$tempDir = New-TemporaryFile | ForEach-Object { Remove-Item $_; New-Item -ItemType Directory -Path $_ }
+$zipPath = Join-Path $tempDir "$assetName.zip"
+
+Write-Host "==> Downloading $url" -ForegroundColor Green
+Invoke-WebRequest -Uri $url -OutFile $zipPath
+
+Write-Host "==> Extracting" -ForegroundColor Green
+Expand-Archive -Path $zipPath -DestinationPath $tempDir -Force
+
+# Install
+New-Item -ItemType Directory -Path $InstallDir -Force | Out-Null
+Copy-Item -Path (Join-Path $tempDir $BinaryName) -Destination (Join-Path $InstallDir $BinaryName) -Force
+
+# Clean up
+Remove-Item -Path $tempDir -Recurse -Force
+
+Write-Host "==> snact $version installed to $InstallDir\$BinaryName" -ForegroundColor Green
+Write-Host ""
+
+# Check PATH
+if ($env:PATH -notlike "*$InstallDir*") {
+    Write-Host "  Add snact to your PATH:" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "    [Environment]::SetEnvironmentVariable('PATH', `"$InstallDir;`$env:PATH`", 'User')"
+    Write-Host ""
+    Write-Host "  Then restart your terminal."
+} else {
+    Write-Host "  Quick start:"
+    Write-Host ""
+    Write-Host "    snact browser launch --background"
+    Write-Host "    snact snap https://example.com"
+    Write-Host "    snact click @e1"
+    Write-Host "    snact browser stop"
+    Write-Host ""
+    Write-Host "  Full docs: snact --help"
+}

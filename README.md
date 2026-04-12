@@ -84,10 +84,17 @@ Same benchmark task, recorded once and replayed. The replay skips all LLM reason
 ## Installation
 
 ```bash
-# One-line install (macOS / Linux)
+# macOS / Linux
 curl -fsSL https://raw.githubusercontent.com/vericontext/snact/main/install.sh | bash
+```
 
-# From source
+```powershell
+# Windows (PowerShell)
+irm https://raw.githubusercontent.com/vericontext/snact/main/install.ps1 | iex
+```
+
+```bash
+# From source (all platforms)
 cargo install --path crates/snact-cli
 
 # Verify
