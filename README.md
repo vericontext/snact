@@ -252,29 +252,27 @@ snact snap https://example.com --output=ndjson
 
 ## Architecture
 
-```
-AI Agent (Claude, GPT, ...)
-    │ CLI stdout/stdin
-    ▼
-┌─────────────────────────────────────┐
-│  snact-cli    Thin CLI shell (clap) │
-├─────────────────────────────────────┤
-│  snact-core   Domain logic          │
-│  ┌─────┐ ┌────┐ ┌───────┐ ┌─────┐  │
-│  │Snap │ │Read│ │Action │ │Rec/ │  │
-│  │     │ │    │ │+ snap │ │Play │  │
-│  └──┬──┘ └──┬─┘ └───┬───┘ └──┬──┘  │
-│     └───┬───┘       │        │     │
-│    Element Map   Session     │     │
-│    (@eN refs)    Storage     │     │
-├─────────────────────────────────────┤
-│  snact-cdp    CDP transport         │
-│  WebSocket + ~25 hand-written cmds  │
-└─────────────┬───────────────────────┘
-              │ WebSocket (CDP)
-       ┌──────▼──────┐
-       │   Chrome     │
-       └─────────────┘
+```mermaid
+graph TD
+    A["AI Agent (Claude, GPT, ...)"] -->|"CLI stdout/stdin"| B
+
+    subgraph snact
+        B["snact-cli<br/><small>Thin CLI shell (clap)</small>"]
+        B --> C
+
+        subgraph core["snact-core"]
+            C["Snap"] & D["Read"] & E["Action + snap"] & F["Record/Replay"]
+            C --> G["Element Map<br/><small>@eN refs</small>"]
+            D --> G
+            E --> H["Session Storage"]
+        end
+
+        core --> I
+
+        I["snact-cdp<br/><small>WebSocket + ~25 hand-written CDP commands</small>"]
+    end
+
+    I -->|"WebSocket (CDP)"| J["Chrome"]
 ```
 
 **Three-crate workspace** &mdash; `cdp` handles Chrome protocol, `core` is the library, `cli` is a thin shell.
