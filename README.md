@@ -38,82 +38,36 @@ ok
 
 Every action automatically returns a fresh page snapshot &mdash; no manual re-snap needed.
 
+## Benchmark
+
+> **Task:** Visit npmjs.com for 10 React state management libraries. Collect weekly downloads, last publish date, unpacked size, and dependencies for each. Compile into a comparison table.
+
+https://github.com/user-attachments/assets/544718bf-747a-446a-896a-f2c5c376f3d7
+
+<sup>Both sides played at 16x speed. Left: Playwright MCP (5m 17s real time). Right: snact CLI (2m 39s real time).</sup>
+
+| | snact CLI | Playwright CLI | Playwright MCP |
+|--|-----------|----------------|----------------|
+| **Time** | **2m 39s** | 5m 10s | 5m 17s |
+| **Total tokens** | **34.1K (17%)** | 35.4K (18%) | 88K (44%) |
+| **Message tokens** | **18.8K** | 20.1K | 73.4K |
+| **Data accuracy** | Correct | Correct | Correct |
+
+snact finished in half the time with half the tokens. All three produced identical data. See [detailed analysis](#detailed-benchmark-analysis).
+
 ## Why snact?
 
 |  | Playwright MCP | Playwright CLI | snact |
 |--|----------------|----------------|-------|
 | **Architecture** | Persistent MCP server | Daemon + CLI | **Stateless CLI** |
 | **After click/fill** | Snapshot in response | Manual re-snapshot | **Snapshot in response** |
-| **Tokens per page** | ~3K-50K¹ (full A11Y tree) | ~1K-13K¹ (YAML snapshot) | **~50-4K** (measured) |
-| **Page understanding** | Raw accessibility tree | YAML refs | **Section headings + content summaries** |
-| **Repeated task cost** | Full LLM call | Full LLM call | **0** (workflow replay) |
-| **Session persistence** | Config-based | `--persistent` flag | `session save/load` (one command) |
+| **Tokens per page** | ~3K-50K | ~1K-13K | **~50-4K** (measured) |
+| **Repeated tasks** | Full LLM call | Full LLM call | **0** (workflow replay) |
+| **Session persistence** | Config-based | `--persistent` flag | **`session save/load`** |
 | **Cron automation** | Requires LLM API | Requires LLM API | **Shell one-liner** |
-| **Custom JS execution** | `browser_evaluate` | `eval` / `run-code` | **`eval`** |
 | **Locale/Geo override** | Via `run-code` | Via config | **`--locale` / `--geo` flags** |
-| **Shadow DOM** | Limited | Limited | **Full** (CDP direct) |
 | **Install** | npm + Playwright | npm + Playwright | **Single binary** (Rust) |
 | **Multi-browser** | Chromium/FF/WebKit | Chromium/FF/WebKit | Chrome only |
-
-<details>
-<summary>Token measurements (click to expand)</summary>
-
-Measured with `wc -c / 4` on actual snap output (1 token &approx; 4 chars):
-
-| Site | snact (full) | snact (`--focus`) |
-|------|-------------|-------------------|
-| example.com | 46 | &mdash; |
-| GitHub Login | 172 | 60 |
-| GitHub Trending | 2,152 | 614 |
-| Hacker News | 2,670 | &mdash; |
-| Apple MacBook Pro | 2,546 | &mdash; |
-| StackOverflow | 4,363 | &mdash; |
-| NYTimes | 2,417 | &mdash; |
-
-Simple pages: 50-200 tokens. Typical pages: 2K-4K. With `--focus`: 60-600.
-
-</details>
-
-<sup>¹ Playwright token estimates from [scrolltest.medium.com](https://scrolltest.medium.com/playwright-mcp-burns-114k-tokens-per-test-the-new-cli-uses-27k-heres-when-to-use-each-65dabeaac7a0) (MCP ~114K per test session, CLI ~27K). Per-page figures extrapolated. snact numbers are directly measured.</sup>
-
-### The core insight
-
-Most browser automation tools dump the entire page state to the LLM on every turn. snact sends only interactable elements grouped by section headings, with content summaries between them. For typical pages this is **2-4K tokens** (measured) vs Playwright's reported 3-50K.
-
-After every action (click, fill, type, select, scroll), snact automatically waits for the page to settle and returns a fresh snapshot &mdash; matching Playwright MCP's auto-snapshot behavior.
-
-For repeated workflows, snact is the only tool that offers **record once, replay forever** with zero LLM cost.
-
-### Real-world benchmark
-
-> **Task:** Visit npmjs.com for 10 React state management libraries (zustand, jotai, recoil, valtio, mobx, redux, xstate, effector, nanostores, legend-state). Collect weekly downloads, last publish date, unpacked size, and dependencies for each. Compile into a comparison table.
-
-https://github.com/user-attachments/assets/544718bf-747a-446a-896a-f2c5c376f3d7
-
-<sup>Both sides played at 16x speed. Left: Playwright MCP (5m 17s real time). Right: snact CLI (2m 39s real time).</sup>
-
-| | snact CLI | Playwright MCP | Playwright CLI |
-|--|-----------|----------------|----------------|
-| **Time** | **2m 39s** | 5m 17s | 5m 10s |
-| **Total tokens** | **34.1K (17%)** | 88K (44%) | 35.4K (18%) |
-| **Message tokens** | **18.8K** | 73.4K | 20.1K |
-| **Data accuracy** | Correct | Correct | Correct |
-
-<details>
-<summary>Detailed analysis (click to expand)</summary>
-
-**Speed:** snact finished in half the time (2m 39s vs ~5m). Both Playwright approaches took similar time (~5m 10-17s).
-
-**Token efficiency:** snact and Playwright CLI used similar total tokens (~34-35K), but Playwright MCP consumed 2.5x more (88K) due to accessibility tree snapshots accumulating in context. MCP's message tokens alone (73.4K) were 3.9x higher than snact's (18.8K).
-
-**Answer quality:** All three produced identical data. Minor format differences:
-- snact: relative dates ("2 years ago"), abbreviated downloads (28.5M), dependency names included
-- Playwright MCP: relative dates, exact download counts (28,515,625), dependency names included
-- Playwright CLI: **absolute dates** (2023-12-23), exact download counts, dependency counts only
-
-**Conclusion:** For multi-page data collection tasks, snact delivers the same results in half the time with half the tokens. The advantage grows with more pages &mdash; Playwright MCP's context accumulation makes it increasingly inefficient at scale.
-
-</details>
 
 ## Installation
 
@@ -134,8 +88,7 @@ snact --version
 
 ```bash
 snact browser launch --background
-# Uses persistent profile (~/.local/share/snact/profiles/default/)
-# Cookies and login state persist between sessions
+# Persistent profile — cookies and login state survive restarts
 # Use --profile=work for separate profiles
 ```
 
@@ -157,7 +110,7 @@ snact snap https://github.com/trending
 @e37 [link] href="/microsoft/markitdown"
 ```
 
-Section headings group elements. `>` lines summarize content (prices, descriptions, options). Each `@eN` reference is stable until the next snap.
+Section headings group elements. `>` lines summarize content. Each `@eN` reference is stable until the next snap.
 
 ### 3. Act &mdash; actions return updated state
 
@@ -175,7 +128,7 @@ ok
 ...
 ```
 
-Every mutation action (click, fill, type, select, scroll) automatically returns a fresh snap. No manual re-snap needed. Use `--no-snap` to disable.
+Every mutation (click, fill, type, select, scroll) returns a fresh snap. Use `--no-snap` to disable.
 
 ### 4. Read &mdash; full text content
 
@@ -189,9 +142,9 @@ This domain is for use in documentation examples.
 Learn more
 ```
 
-`snap` gives you structure + elements + summaries. `read` gives you full text when you need deeper content.
+`snap` = structure + elements + summaries. `read` = full text when you need more detail.
 
-### 4b. Eval &mdash; custom JavaScript extraction
+### 5. Eval &mdash; custom JavaScript
 
 When snap/read can't capture dynamic content (e.g. Amazon product cards):
 
@@ -202,14 +155,14 @@ snact eval "JSON.stringify(Array.from(document.querySelectorAll('.product')).map
 })))"
 ```
 
-### 5. Session &mdash; persist browser state
+### 6. Session &mdash; persist browser state
 
 ```bash
 snact session save github           # cookies + localStorage
 snact session load github           # restore later
 ```
 
-### 6. Record & Replay &mdash; zero LLM cost
+### 7. Record & Replay &mdash; zero LLM cost
 
 ```bash
 snact record start login-flow
@@ -234,16 +187,16 @@ snact replay login-flow
 | `type <@ref> <text>` | Type character by character (returns updated snap) |
 | `select <@ref> <value>` | Select dropdown option (returns updated snap) |
 | `scroll [direction]` | Scroll page (returns updated snap) |
+| `eval <expression>` | Execute JavaScript on the page |
 | `screenshot [--file]` | Capture page as PNG |
-| `eval <expression>` | Execute JavaScript on the page (for custom data extraction) |
 | `wait <condition>` | Wait for navigation, CSS selector, or timeout (ms) |
 | `session save\|load\|list\|delete` | Manage browser sessions |
 | `record start\|stop\|list\|delete` | Record command sequences |
 | `replay <name>` | Replay a recorded workflow |
-| `browser launch [--profile]` | Manage Chrome (persistent profile by default) |
+| `browser launch\|stop\|status` | Manage Chrome instance |
 | `schema [command]` | JSON Schema introspection |
 | `mcp` | Start MCP server (JSON-RPC over stdio) |
-| `init` | Create AGENT.md in current directory (for Claude Code) |
+| `init` | Create AGENT.md for Claude Code skill discovery |
 
 ### Global flags
 
@@ -258,37 +211,12 @@ snact replay login-flow
 --geo <LAT,LON>     Geolocation override (e.g. "37.7749,-122.4194")
 --user-agent <UA>   Custom User-Agent string
 --focus <SEL>       CSS selector to limit scope (snap/read)
---verbose         Debug logging
+--verbose           Debug logging
 ```
-
-## Snap output format
-
-snact's snap output is designed for LLM comprehension:
-
-```
-## Section Heading
-> Content summary: prices, options, descriptions (up to 300 chars)
-@e1 [role] "label" id="..." href="..." expanded desc="Opens in new tab"
-@e2 [input:text] "Search" placeholder="..." required
-```
-
-| Component | Purpose |
-|-----------|---------|
-| `## Heading` | Page section structure (h1-h6) |
-| `> summary` | Key text content from that section |
-| `@eN` | Stable element reference for actions |
-| `[role]` | Semantic role (button, link, textbox, etc.) |
-| `"label"` | Accessible name |
-| `id=`, `href=` | Key attributes |
-| `expanded`, `collapsed` | Dropdown/accordion state |
-| `selected` | Active tab/option |
-| `required`, `readonly` | Form field constraints |
-| `desc="..."` | Accessibility description |
-| `— nearby text` | Structurally related content |
 
 ## AI agent integration
 
-### Claude Code (CLI)
+### Claude Code
 
 snact works as a native CLI tool &mdash; no MCP configuration needed:
 
@@ -297,6 +225,8 @@ snact browser launch --background
 claude
 # "Use snact to find the MacBook Pro M4 Pro price on apple.com"
 ```
+
+Run `snact init` in your project directory to create an AGENT.md skill file for Claude Code.
 
 ### MCP server
 
@@ -347,7 +277,10 @@ AI Agent (Claude, GPT, ...)
        └─────────────┘
 ```
 
-### How contextual snap works
+**Three-crate workspace** &mdash; `cdp` handles Chrome protocol, `core` is the library, `cli` is a thin shell.
+
+<details>
+<summary>How contextual snap works</summary>
 
 1. **`DOMSnapshot.captureSnapshot`** &mdash; Full flattened DOM including Shadow DOM
 2. **`Accessibility.getFullAXTree`** &mdash; Semantic roles, names, descriptions, properties
@@ -356,7 +289,10 @@ AI Agent (Claude, GPT, ...)
 5. **Filter** &mdash; Keep only interactable elements, exclude hidden/aria-hidden
 6. **Compress** &mdash; Group by section headings, add content summaries, assign `@eN` refs
 
-### Auto re-snap after actions
+</details>
+
+<details>
+<summary>Auto re-snap after actions</summary>
 
 Every mutation action (click, fill, type, select, scroll) automatically:
 
@@ -365,7 +301,32 @@ Every mutation action (click, fill, type, select, scroll) automatically:
 3. **Takes a fresh snap** on the same transport connection
 4. Returns `ok\n---\n{snap output}` so the LLM sees updated state in one turn
 
-This matches Playwright MCP's auto-snapshot behavior while using 4-10x fewer tokens.
+</details>
+
+<details>
+<summary>Snap output format reference</summary>
+
+```
+## Section Heading
+> Content summary: prices, options, descriptions (up to 300 chars)
+@e1 [role] "label" id="..." href="..." expanded desc="Opens in new tab"
+@e2 [input:text] "Search" placeholder="..." required
+```
+
+| Component | Purpose |
+|-----------|---------|
+| `## Heading` | Page section structure (h1-h6) |
+| `> summary` | Key text content from that section |
+| `@eN` | Stable element reference for actions |
+| `[role]` | Semantic role (button, link, textbox, etc.) |
+| `"label"` | Accessible name |
+| `id=`, `href=` | Key attributes |
+| `expanded`, `collapsed` | Dropdown/accordion state |
+| `selected` | Active tab/option |
+| `required`, `readonly` | Form field constraints |
+| `desc="..."` | Accessibility description |
+
+</details>
 
 ### Design decisions
 
@@ -373,6 +334,7 @@ This matches Playwright MCP's auto-snapshot behavior while using 4-10x fewer tok
 - **Disk-based state** between invocations &mdash; element maps, sessions, workflows as JSON
 - **`backendNodeId`** as element identifier &mdash; stable within a page load, selector hints for replay
 - **Text output by default** &mdash; optimized for LLM comprehension, not JSON parsing
+- **Persistent browser profiles** &mdash; cookies survive restarts, reduces bot detection
 - **Single-threaded tokio** &mdash; one thing at a time
 
 ## Data storage
@@ -381,11 +343,43 @@ All state lives in `~/.local/share/snact/` (Linux) or `~/Library/Application Sup
 
 ```
 snact/
-├── element_map.json      # Current @eN → element mappings
-├── sessions/{name}.json  # Saved browser sessions
-├── workflows/{name}.json # Recorded workflows
-└── recording.json        # Active recording state
+├── element_map.json        # Current @eN → element mappings
+├── profiles/default/       # Persistent Chrome profile
+├── sessions/{name}.json    # Saved browser sessions
+├── workflows/{name}.json   # Recorded workflows
+└── recording.json          # Active recording state
 ```
+
+## Detailed benchmark analysis
+
+> Task: Visit npmjs.com for 10 React state management libraries (zustand, jotai, recoil, valtio, mobx, redux, xstate, effector, nanostores, legend-state). Collect weekly downloads, last publish date, unpacked size, and dependencies.
+
+**Speed:** snact finished in half the time (2m 39s vs ~5m). Both Playwright approaches took similar time (~5m 10-17s).
+
+**Token efficiency:** snact and Playwright CLI used similar total tokens (~34-35K), but Playwright MCP consumed 2.5x more (88K) due to accessibility tree snapshots accumulating in context. MCP's message tokens alone (73.4K) were 3.9x higher than snact's (18.8K).
+
+**Answer quality:** All three produced identical data. Minor format differences: snact used relative dates and abbreviated downloads; Playwright CLI provided absolute dates; Playwright MCP included exact download counts.
+
+<details>
+<summary>Per-page token measurements</summary>
+
+Measured with `wc -c / 4` on actual snap output (1 token &approx; 4 chars):
+
+| Site | snact (full) | snact (`--focus`) |
+|------|-------------|-------------------|
+| example.com | 46 | &mdash; |
+| GitHub Login | 172 | 60 |
+| GitHub Trending | 2,152 | 614 |
+| Hacker News | 2,670 | &mdash; |
+| Apple MacBook Pro | 2,546 | &mdash; |
+| StackOverflow | 4,363 | &mdash; |
+| NYTimes | 2,417 | &mdash; |
+
+Simple pages: 50-200 tokens. Typical pages: 2K-4K. With `--focus`: 60-600.
+
+Playwright token estimates from [scrolltest.medium.com](https://scrolltest.medium.com/playwright-mcp-burns-114k-tokens-per-test-the-new-cli-uses-27k-heres-when-to-use-each-65dabeaac7a0) (MCP ~114K per test session, CLI ~27K). snact numbers are directly measured.
+
+</details>
 
 ## Contributing
 
