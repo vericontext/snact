@@ -284,27 +284,30 @@ snact snap https://example.com --output=ndjson
 ```mermaid
 graph TD
     A["AI Agent (Claude, GPT, ...)"] -->|"CLI stdout/stdin"| B
+    A -->|"JSON-RPC stdio"| M
 
     subgraph snact
         B["snact-cli<br/><small>Thin CLI shell (clap)</small>"]
+        M["MCP Server<br/><small>JSON-RPC over stdio</small>"]
         B --> C
+        M --> C
 
         subgraph core["snact-core"]
             C["Snap"] & D["Read"] & E["Action + snap"] & F["Record/Replay"]
             C --> G["Element Map<br/><small>@eN refs</small>"]
-            D --> G
-            E --> H["Session Storage"]
+            E --> G
+            H["Session Storage"]
         end
 
         core --> I
 
-        I["snact-cdp<br/><small>WebSocket + ~25 hand-written CDP commands</small>"]
+        I["snact-cdp<br/><small>WebSocket + ~30 hand-written CDP commands</small>"]
     end
 
     I -->|"WebSocket (CDP)"| J["Chrome"]
 ```
 
-**Three-crate workspace** &mdash; `cdp` handles Chrome protocol, `core` is the library, `cli` is a thin shell.
+**Three-crate workspace** &mdash; `cdp` handles Chrome protocol, `core` is the library, `cli` is a thin shell. MCP server exposes the same core over JSON-RPC for Claude Desktop and other MCP clients.
 
 <details>
 <summary>How contextual snap works</summary>
