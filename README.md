@@ -97,7 +97,7 @@ curl -fsSL https://raw.githubusercontent.com/vericontext/snact/main/install.sh |
 ```
 
 ```powershell
-# Windows (PowerShell)
+# Windows (PowerShell) — experimental, see #3
 irm https://raw.githubusercontent.com/vericontext/snact/main/install.ps1 | iex
 ```
 
