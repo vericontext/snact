@@ -44,7 +44,7 @@ Every action automatically returns a fresh page snapshot &mdash; no manual re-sn
 |--|----------------|----------------|-------|
 | **Architecture** | Persistent MCP server | Daemon + CLI | **Stateless CLI** |
 | **After click/fill** | Snapshot in response | Manual re-snapshot | **Snapshot in response** |
-| **Tokens per page** | ~3K-50K (full A11Y tree) | ~1K-13K (YAML snapshot) | **~50-4K** (section-grouped) |
+| **Tokens per page** | ~3K-50K¹ (full A11Y tree) | ~1K-13K¹ (YAML snapshot) | **~50-4K** (measured) |
 | **Page understanding** | Raw accessibility tree | YAML refs | **Section headings + content summaries** |
 | **Repeated task cost** | Full LLM call | Full LLM call | **0** (workflow replay) |
 | **Session persistence** | Config-based | `--persistent` flag | `session save/load` (one command) |
@@ -74,9 +74,11 @@ Simple pages: 50-200 tokens. Typical pages: 2K-4K. With `--focus`: 60-600.
 
 </details>
 
+<sup>¹ Playwright token estimates from [scrolltest.medium.com](https://scrolltest.medium.com/playwright-mcp-burns-114k-tokens-per-test-the-new-cli-uses-27k-heres-when-to-use-each-65dabeaac7a0) (MCP ~114K per test session, CLI ~27K). Per-page figures extrapolated. snact numbers are directly measured.</sup>
+
 ### The core insight
 
-Most browser automation tools dump the entire page state to the LLM on every turn. snact sends only interactable elements grouped by section headings, with content summaries between them. For typical pages this is **2-4K tokens** vs Playwright's 3-50K.
+Most browser automation tools dump the entire page state to the LLM on every turn. snact sends only interactable elements grouped by section headings, with content summaries between them. For typical pages this is **2-4K tokens** (measured) vs Playwright's reported 3-50K.
 
 After every action (click, fill, type, select, scroll), snact automatically waits for the page to settle and returns a fresh snapshot &mdash; matching Playwright MCP's auto-snapshot behavior.
 
