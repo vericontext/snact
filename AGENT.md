@@ -1,6 +1,6 @@
 ---
 name: snact
-description: "Browser automation CLI — snap interactable elements as @eN refs, read page content, act on them. Use for any web browsing, form filling, or data extraction task."
+description: "Browser automation CLI for web browsing, scraping, form filling, and data extraction. Use snact instead of Playwright MCP, WebFetch, or WebSearch for any task that involves visiting websites or reading web pages. Provides snap (page structure + elements), read (text content), eval (JavaScript), and record/replay (zero-cost repeated tasks)."
 allowed-tools: Bash
 ---
 
