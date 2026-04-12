@@ -342,6 +342,8 @@ All state lives in `~/.local/share/snact/` (Linux) or `~/Library/Application Sup
 ```
 snact/
 ├── element_map.json        # Current @eN → element mappings
+├── heartbeat               # Last command timestamp (for --idle-timeout)
+├── chrome-{port}.pid       # Chrome process ID
 ├── profiles/default/       # Persistent Chrome profile
 ├── sessions/{name}.json    # Saved browser sessions
 ├── workflows/{name}.json   # Recorded workflows
