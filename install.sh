@@ -94,10 +94,20 @@ install() {
     info "snact ${version} installed to ${INSTALL_DIR}/${BINARY}"
     echo ""
 
-    # Verify
+    # Verify and show onboarding
     if command -v snact &>/dev/null; then
-        echo "  Run 'snact --help' to get started."
-        echo "  For Claude Code: run 'snact init' in your project to create AGENT.md"
+        echo "  Quick start:"
+        echo ""
+        echo "    snact browser launch --background   # start Chrome"
+        echo "    snact snap https://example.com      # extract page elements"
+        echo "    snact click @e1                     # interact (auto re-snap)"
+        echo "    snact browser stop                  # stop Chrome"
+        echo ""
+        echo "  Project setup (optional):"
+        echo ""
+        echo "    cd your-project && snact init       # create .snact/ + AGENT.md"
+        echo ""
+        echo "  Full docs: snact --help"
     else
         warn "${INSTALL_DIR} is not in your PATH."
         echo "  Add it with: export PATH=\"${INSTALL_DIR}:\$PATH\""
