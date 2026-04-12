@@ -577,13 +577,37 @@ async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
             cmd::schema::run(command.as_deref(), fmt);
         }
         Commands::Init => {
-            let agent_md = include_str!("../../../AGENT.md");
-            let path = std::path::Path::new("AGENT.md");
-            if path.exists() {
-                eprintln!("AGENT.md already exists in current directory");
+            let mut created = Vec::new();
+
+            // Create .snact/ directory for project-scope workflows
+            let snact_dir = std::path::Path::new(".snact");
+            if !snact_dir.exists() {
+                std::fs::create_dir_all(snact_dir.join("workflows"))?;
+                created.push(".snact/workflows/");
+            }
+
+            // Create AGENT.md for Claude Code skill discovery
+            let agent_path = std::path::Path::new("AGENT.md");
+            if !agent_path.exists() {
+                let agent_md = include_str!("../../../AGENT.md");
+                std::fs::write(agent_path, agent_md)?;
+                created.push("AGENT.md");
+            }
+
+            // Create .snact/.gitkeep so empty dir is tracked by git
+            let gitkeep = snact_dir.join("workflows").join(".gitkeep");
+            if !gitkeep.exists() {
+                std::fs::write(&gitkeep, "")?;
+            }
+
+            if created.is_empty() {
+                println!("Already initialized.");
             } else {
-                std::fs::write(path, agent_md)?;
-                println!("Created AGENT.md — Claude Code will now discover snact as a skill.");
+                println!("Initialized snact project:");
+                for item in &created {
+                    println!("  + {item}");
+                }
+                println!("\nWorkflows will be saved to .snact/workflows/ (project scope).");
             }
         }
     }
