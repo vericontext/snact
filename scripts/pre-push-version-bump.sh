@@ -27,14 +27,20 @@ if [ -z "$COMMITS" ]; then
   exit 0
 fi
 
-# Check if there's already a version bump commit (avoid double-bump)
-if echo "$COMMITS" | grep -q "^chore: bump version to"; then
+# Check if the latest commit is already a version bump (avoid double-bump on re-push)
+LATEST_COMMIT=$(git log -1 --pretty=format:"%s")
+if echo "$LATEST_COMMIT" | grep -q "^chore: bump version to"; then
   exit 0
 fi
 
-# Determine bump type from commit messages
+# Determine bump type from commits AFTER the last bump (not all commits since tag)
 BUMP=""
+FOUND_BUMP=false
 while IFS= read -r msg; do
+  if echo "$msg" | grep -q "^chore: bump version to"; then
+    FOUND_BUMP=true
+    break
+  fi
   case "$msg" in
     feat:*|feat\(*) BUMP="minor"; break ;;
     fix:*|fix\(*)   [ -z "$BUMP" ] && BUMP="patch" ;;
