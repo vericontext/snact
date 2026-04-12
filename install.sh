@@ -37,15 +37,23 @@ detect_platform() {
 
 # Get latest release tag
 get_latest_version() {
-    local url="https://api.github.com/repos/${REPO}/releases/latest"
     local version
 
+    # Method 1: GitHub redirect (no API rate limit)
     if command -v curl &>/dev/null; then
-        version=$(curl -fsSL "$url" | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"//;s/".*//')
-    elif command -v wget &>/dev/null; then
-        version=$(wget -qO- "$url" | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"//;s/".*//')
-    else
-        error "Neither curl nor wget found. Please install one of them."
+        version=$(curl -fsSLI -o /dev/null -w '%{url_effective}' "https://github.com/${REPO}/releases/latest" | sed 's|.*/||')
+    fi
+
+    # Method 2: GitHub API (fallback, subject to rate limits)
+    if [ -z "$version" ] || [ "$version" = "latest" ]; then
+        local api_url="https://api.github.com/repos/${REPO}/releases/latest"
+        if command -v curl &>/dev/null; then
+            version=$(curl -fsSL "$api_url" 2>/dev/null | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"//;s/".*//')
+        elif command -v wget &>/dev/null; then
+            version=$(wget -qO- "$api_url" 2>/dev/null | grep '"tag_name"' | head -1 | sed 's/.*"tag_name": *"//;s/".*//')
+        else
+            error "Neither curl nor wget found. Please install one of them."
+        fi
     fi
 
     if [ -z "$version" ]; then
