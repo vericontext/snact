@@ -337,7 +337,7 @@ Every mutation action (click, fill, type, select, scroll) automatically:
 
 ## Data storage
 
-All state lives in `~/.local/share/snact/` (Linux) or `~/Library/Application Support/snact/` (macOS):
+**User scope** &mdash; `~/.local/share/snact/` (Linux) or `~/Library/Application Support/snact/` (macOS):
 
 ```
 snact/
@@ -346,9 +346,18 @@ snact/
 ├── chrome-{port}.pid       # Chrome process ID
 ├── profiles/default/       # Persistent Chrome profile
 ├── sessions/{name}.json    # Saved browser sessions
-├── workflows/{name}.json   # Recorded workflows
+├── workflows/{name}.json   # Recorded workflows (personal)
 └── recording.json          # Active recording state
 ```
+
+**Project scope** &mdash; `.snact/` in the project directory (created by `snact init`, git-committable):
+
+```
+.snact/
+└── workflows/{name}.json   # Shared workflows (team/repo)
+```
+
+Workflows save to project scope when `.snact/` exists, otherwise user scope. On load, project scope takes priority.
 
 ## Detailed benchmark analysis
 
