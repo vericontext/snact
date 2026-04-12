@@ -204,6 +204,10 @@ enum Commands {
         /// Command name (e.g. snap, click, fill). Omit for full schema.
         command: Option<String>,
     },
+
+    /// Write AGENT.md to the current directory for Claude Code skill discovery.
+    /// Run this once in your project to enable Claude Code to use snact as a skill.
+    Init,
 }
 
 #[derive(Subcommand)]
@@ -258,46 +262,53 @@ enum BrowserAction {
 
 const AGENT_GUIDE: &str = "\
 WORKFLOW (for AI agents):
-  1. snact browser launch --background  # start Chrome (auto-detaches)
-  2. snact snap <url>                   # get interactable elements as @eN refs
-  3. snact read                         # read visible text content (headings, lists, tables)
-  4. snact click/fill/type @eN          # act on elements by reference
-  5. snact snap                         # re-snap to see updated state
-  6. snact browser stop                 # stop Chrome when done
+  1. snact browser launch --background   # start Chrome (persistent profile)
+  2. snact snap <url>                    # page structure + elements + section summaries
+  3. snact click/fill/type @eN           # act (auto re-snap included in response)
+  4. snact browser stop                  # stop Chrome when done
 
-SNAP vs READ:
-  snap   → interactable elements only (buttons, links, inputs) — use before acting
-  read   → visible text content (headings, paragraphs, lists, tables) — use to understand content
-  Both support --focus=<selector> to scope to a page section.
+  Actions (click, fill, type, select, scroll) automatically return a fresh
+  page snapshot — no need to call snap manually after each action.
+
+SNAP vs READ vs EVAL:
+  snap   → page structure + interactable elements + section content summaries
+  read   → full visible text as structured markdown
+  eval   → execute custom JavaScript (for complex data extraction)
+  All support --focus=<selector> to scope to a page section.
 
 ELEMENT REFERENCES:
-  snap output: @e1 [button] \"Sign In\" id=\"submit\"
+  snap output: @e1 [button] \"Sign In\" id=\"submit\" expanded desc=\"...\"
   use @e1 in: snact click @e1 / snact fill @e1 \"value\"
   refs persist on disk — valid until next snap
 
-OUTPUT MODES:
-  terminal  → human-readable text (default)
-  piped     → JSON auto-detected (snact snap url | jq .)
-  explicit  → --output=json for forced JSON
+BROWSER ENVIRONMENT (for international sites):
+  --locale=en-US    Override JS navigator.language (fixes currency: KRW→USD)
+  --geo=LAT,LON     Override geolocation (e.g. 37.7749,-122.4194)
+  --user-agent=UA   Override User-Agent string
+  --lang=LANG       Set Accept-Language HTTP header [default: en-US]
+
+  Example: snact snap https://amazon.com --locale=en-US --geo=37.7,-122.4
+
+KEY FLAGS:
+  --no-snap          Skip auto re-snap after actions (for record/replay)
+  --focus=SELECTOR   Limit scope to a CSS selector (snap/read)
+  --profile=NAME     Named browser profile (browser launch)
 
 EXAMPLES:
-  snact snap https://github.com/login       # list login form elements
-  snact fill @e2 \"user\" && snact fill @e3 \"pass\" && snact click @e5
-  snact read https://github.com/pulls       # read PR list as structured text
-  snact read --focus=\"main\"                 # read only the main section
-  snact screenshot --file=page.png          # capture current page
-  snact session save mysite                 # persist cookies/storage
-  snact session load mysite                 # restore session later
-  snact --lang=ko snap https://google.com   # Korean content
+  snact snap https://github.com/login        # form elements + section summaries
+  snact fill @e2 \"user\" && snact click @e5  # fill + click (auto re-snap)
+  snact read --focus=\"main\"                  # read main section as markdown
+  snact eval \"document.title\"                # run JavaScript on page
+  snact eval \"JSON.stringify([...document.querySelectorAll('h2')].map(h=>h.textContent))\"
+  snact session save github                  # persist cookies/state
+  snact session load github                  # restore later
+  snact record start my-flow                 # record a workflow
+  snact replay my-flow                       # replay with zero LLM cost
 
-SCHEMA INTROSPECTION:
-  snact schema                           # full JSON Schema for all commands
-  snact schema snap                      # schema for a specific command
-
-MCP SERVER:
-  snact mcp                              # start JSON-RPC server over stdio
-  Add to claude_desktop_config.json:
-    {\"mcpServers\":{\"snact\":{\"command\":\"snact\",\"args\":[\"mcp\"]}}}
+SCHEMA / MCP / INIT:
+  snact schema [command]                     # JSON Schema introspection
+  snact mcp                                  # start MCP server (JSON-RPC stdio)
+  snact init                                 # create AGENT.md for Claude Code
 
 SAFETY:
   --dry-run on any mutation shows what would execute without acting
@@ -564,6 +575,16 @@ async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
         }
         Commands::Schema { command } => {
             cmd::schema::run(command.as_deref(), fmt);
+        }
+        Commands::Init => {
+            let agent_md = include_str!("../../../AGENT.md");
+            let path = std::path::Path::new("AGENT.md");
+            if path.exists() {
+                eprintln!("AGENT.md already exists in current directory");
+            } else {
+                std::fs::write(path, agent_md)?;
+                println!("Created AGENT.md — Claude Code will now discover snact as a skill.");
+            }
         }
     }
 

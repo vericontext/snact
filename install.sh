@@ -97,6 +97,7 @@ install() {
     # Verify
     if command -v snact &>/dev/null; then
         echo "  Run 'snact --help' to get started."
+        echo "  For Claude Code: run 'snact init' in your project to create AGENT.md"
     else
         warn "${INSTALL_DIR} is not in your PATH."
         echo "  Add it with: export PATH=\"${INSTALL_DIR}:\$PATH\""
