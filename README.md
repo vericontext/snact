@@ -88,6 +88,7 @@ snact --version
 snact browser launch --background
 # Persistent profile — cookies and login state survive restarts
 # Use --profile=work for separate profiles
+# Use --idle-timeout=30 to auto-stop after 30 min of inactivity
 ```
 
 ### 2. Snap &mdash; structure + content + elements
@@ -204,6 +205,7 @@ snact replay login-flow
 --dry-run           Preview action without executing
 --no-snap           Skip automatic re-snap after actions
 --profile <NAME>    Browser profile name [default: "default"] (browser launch)
+--idle-timeout <MIN> Auto-stop Chrome after N minutes of inactivity (browser launch)
 --lang <LANG>       Accept-Language header [default: en-US]
 --locale <LOCALE>   JS navigator.language override (e.g. en-US, ja-JP)
 --geo <LAT,LON>     Geolocation override (e.g. "37.7749,-122.4194")

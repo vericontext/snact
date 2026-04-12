@@ -46,9 +46,22 @@ pub async fn discover_page_ws_url(port: u16) -> CdpResult<String> {
 }
 
 /// Connect to an already-running Chrome instance (connects to a page target).
+/// Also updates the heartbeat file for idle-timeout detection.
 pub async fn connect(port: u16) -> CdpResult<CdpTransport> {
     let ws_url = discover_page_ws_url(port).await?;
-    CdpTransport::connect(&ws_url).await
+    let transport = CdpTransport::connect(&ws_url).await?;
+
+    // Update heartbeat for idle-timeout watchdog
+    if let Some(dir) = dirs::data_local_dir() {
+        let path = dir.join("snact").join("heartbeat");
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_secs();
+        let _ = std::fs::write(path, ts.to_string());
+    }
+
+    Ok(transport)
 }
 
 /// Simple HTTP GET helper for Chrome DevTools HTTP endpoints.

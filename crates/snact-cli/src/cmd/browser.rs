@@ -10,6 +10,7 @@ pub fn run_launch(
     headless: bool,
     background: bool,
     profile: Option<&str>,
+    idle_timeout: Option<u32>,
     fmt: &str,
 ) -> Result<()> {
     // Check if already running
@@ -38,13 +39,29 @@ pub fn run_launch(
     // Save PID to file
     std::fs::write(pid_file(port), pid.to_string())?;
 
+    // Initialize heartbeat so idle-timeout watchdog has a starting point
+    let heartbeat_path = snact_core::data_dir().join("heartbeat");
+    let ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    std::fs::write(&heartbeat_path, ts.to_string()).ok();
+
+    // Spawn idle-timeout watchdog if requested
+    if let Some(minutes) = idle_timeout {
+        spawn_idle_watchdog(pid, &heartbeat_path, minutes);
+    }
+
     if fmt == "json" {
         println!(
             "{}",
-            serde_json::json!({"status": "launched", "port": port, "pid": pid, "background": background})
+            serde_json::json!({"status": "launched", "port": port, "pid": pid, "background": background, "idle_timeout_min": idle_timeout})
         );
     } else {
-        println!("Chrome launched on port {} (pid {})", port, pid);
+        let timeout_msg = idle_timeout
+            .map(|m| format!(" (idle timeout: {m}m)"))
+            .unwrap_or_default();
+        println!("Chrome launched on port {port} (pid {pid}){timeout_msg}");
     }
 
     if background {
@@ -56,6 +73,38 @@ pub fn run_launch(
     }
 
     Ok(())
+}
+
+/// Spawn a background process that kills Chrome after `minutes` of inactivity.
+fn spawn_idle_watchdog(chrome_pid: u32, heartbeat_path: &std::path::Path, minutes: u32) {
+    let timeout_secs = minutes as u64 * 60;
+    let hb = heartbeat_path.display().to_string();
+
+    // Self-contained shell watchdog — survives the parent process exiting.
+    let script = format!(
+        r#"while true; do
+  sleep 60
+  if ! kill -0 {chrome_pid} 2>/dev/null; then exit 0; fi
+  if [ -f "{hb}" ]; then
+    last=$(cat "{hb}" 2>/dev/null || echo 0)
+    now=$(date +%s)
+    idle=$((now - last))
+    if [ "$idle" -ge {timeout_secs} ]; then
+      kill {chrome_pid} 2>/dev/null
+      rm -f "{hb}"
+      exit 0
+    fi
+  fi
+done"#
+    );
+
+    std::process::Command::new("sh")
+        .args(["-c", &script])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .stdin(std::process::Stdio::null())
+        .spawn()
+        .ok();
 }
 
 pub fn run_stop(port: u16, fmt: &str) -> Result<()> {

@@ -253,6 +253,11 @@ enum BrowserAction {
         /// cookies and login state between sessions, reducing bot detection.
         #[arg(long)]
         profile: Option<String>,
+
+        /// Auto-stop Chrome after N minutes of inactivity (no snact commands).
+        /// Recommended for AI agent sessions to prevent orphaned Chrome processes.
+        #[arg(long)]
+        idle_timeout: Option<u32>,
     },
     /// Stop a running Chrome instance
     Stop,
@@ -560,8 +565,16 @@ async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
                 headless,
                 background,
                 profile,
+                idle_timeout,
             } => {
-                cmd::browser::run_launch(cli.port, headless, background, profile.as_deref(), fmt)?;
+                cmd::browser::run_launch(
+                    cli.port,
+                    headless,
+                    background,
+                    profile.as_deref(),
+                    idle_timeout,
+                    fmt,
+                )?;
             }
             BrowserAction::Stop => {
                 cmd::browser::run_stop(cli.port, fmt)?;
