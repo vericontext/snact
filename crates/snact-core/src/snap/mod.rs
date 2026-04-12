@@ -7,6 +7,68 @@ use snact_cdp::CdpTransport;
 
 use crate::element_map::ElementMap;
 
+/// Browser emulation settings passed through the CLI.
+#[derive(Debug, Default, Clone)]
+pub struct EmulationOptions {
+    pub geo: Option<(f64, f64)>,
+    pub locale: Option<String>,
+    pub user_agent: Option<String>,
+}
+
+/// Apply browser environment overrides (Accept-Language, geolocation, locale, user-agent).
+/// Must be called before navigation.
+pub async fn apply_emulation(
+    transport: &CdpTransport,
+    lang: &str,
+    opts: &EmulationOptions,
+) -> Result<(), snact_cdp::CdpTransportError> {
+    use snact_cdp::commands::{NetworkEnable, NetworkSetExtraHTTPHeaders};
+
+    // Accept-Language header
+    transport.send(&NetworkEnable {}).await?;
+    let mut headers = std::collections::HashMap::new();
+    headers.insert("Accept-Language".to_string(), format!("{lang},en;q=0.9"));
+    transport
+        .send(&NetworkSetExtraHTTPHeaders { headers })
+        .await?;
+
+    // Geolocation override
+    if let Some((lat, lon)) = opts.geo {
+        use snact_cdp::commands::EmulationSetGeolocationOverride;
+        transport
+            .send(&EmulationSetGeolocationOverride {
+                latitude: Some(lat),
+                longitude: Some(lon),
+                accuracy: Some(100.0),
+            })
+            .await?;
+    }
+
+    // Locale override (JS navigator.language)
+    if let Some(ref loc) = opts.locale {
+        use snact_cdp::commands::EmulationSetLocaleOverride;
+        transport
+            .send(&EmulationSetLocaleOverride {
+                locale: Some(loc.clone()),
+            })
+            .await?;
+    }
+
+    // User-Agent override
+    if let Some(ref ua) = opts.user_agent {
+        use snact_cdp::commands::EmulationSetUserAgentOverride;
+        transport
+            .send(&EmulationSetUserAgentOverride {
+                user_agent: ua.clone(),
+                accept_language: Some(format!("{lang},en;q=0.9")),
+                platform: None,
+            })
+            .await?;
+    }
+
+    Ok(())
+}
+
 /// Result of a snap operation.
 pub struct SnapResult {
     pub output: String,
@@ -20,17 +82,10 @@ pub async fn execute(
     url: Option<&str>,
     focus: Option<&str>,
     lang: &str,
+    emu: &EmulationOptions,
 ) -> Result<SnapResult, snact_cdp::CdpTransportError> {
-    // Set Accept-Language header to control page content language
-    {
-        use snact_cdp::commands::{NetworkEnable, NetworkSetExtraHTTPHeaders};
-        transport.send(&NetworkEnable {}).await?;
-        let mut headers = std::collections::HashMap::new();
-        headers.insert("Accept-Language".to_string(), format!("{lang},en;q=0.9"));
-        transport
-            .send(&NetworkSetExtraHTTPHeaders { headers })
-            .await?;
-    }
+    // Apply environment overrides (Accept-Language, geo, locale, user-agent)
+    apply_emulation(transport, lang, emu).await?;
 
     // Navigate if URL provided
     if let Some(url) = url {

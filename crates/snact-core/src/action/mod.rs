@@ -15,6 +15,7 @@ use std::time::Duration;
 pub async fn post_action_snap(
     transport: &CdpTransport,
     lang: &str,
+    emu: &crate::snap::EmulationOptions,
 ) -> Option<crate::snap::SnapResult> {
     // Subscribe to events before checking for navigation
     let mut rx = transport.subscribe_events();
@@ -44,5 +45,7 @@ pub async fn post_action_snap(
     }
 
     // Take a fresh snap of the current page
-    crate::snap::execute(transport, None, None, lang).await.ok()
+    crate::snap::execute(transport, None, None, lang, emu)
+        .await
+        .ok()
 }

@@ -51,12 +51,13 @@ pub async fn run(
     focus: Option<&str>,
     fmt: &str,
     lang: &str,
+    emu: &snact_core::snap::EmulationOptions,
 ) -> Result<()> {
     let transport = snact_cdp::connect(port).await?;
 
     transport.send(&snact_cdp::commands::PageEnable {}).await?;
 
-    let result = snact_core::snap::execute(&transport, url, focus, lang).await?;
+    let result = snact_core::snap::execute(&transport, url, focus, lang, emu).await?;
 
     check_injection(&result);
 

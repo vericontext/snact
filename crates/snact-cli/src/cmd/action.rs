@@ -32,6 +32,7 @@ async fn ok_with_snap(
     action: &str,
     lang: &str,
     no_snap: bool,
+    emu: &snact_core::snap::EmulationOptions,
 ) {
     if no_snap {
         ok(fmt, action, None);
@@ -41,7 +42,7 @@ async fn ok_with_snap(
     // Enable page events for settle detection
     let _ = transport.send(&snact_cdp::commands::PageEnable {}).await;
 
-    if let Some(snap) = snact_core::action::post_action_snap(transport, lang).await {
+    if let Some(snap) = snact_core::action::post_action_snap(transport, lang, emu).await {
         if fmt == "json" {
             let json = serde_json::json!({
                 "status": "ok",
@@ -61,6 +62,7 @@ async fn ok_with_snap(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_click(
     port: u16,
     ref_id: &str,
@@ -68,6 +70,7 @@ pub async fn run_click(
     dry_run: bool,
     no_snap: bool,
     lang: &str,
+    emu: &snact_core::snap::EmulationOptions,
 ) -> Result<()> {
     if dry_run {
         dry(fmt, "click", serde_json::json!({"ref": ref_id}));
@@ -75,10 +78,11 @@ pub async fn run_click(
     }
     let transport = snact_cdp::connect(port).await?;
     snact_core::action::click::execute(&transport, ref_id).await?;
-    ok_with_snap(&transport, fmt, "click", lang, no_snap).await;
+    ok_with_snap(&transport, fmt, "click", lang, no_snap, emu).await;
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_fill(
     port: u16,
     ref_id: &str,
@@ -87,6 +91,7 @@ pub async fn run_fill(
     dry_run: bool,
     no_snap: bool,
     lang: &str,
+    emu: &snact_core::snap::EmulationOptions,
 ) -> Result<()> {
     if dry_run {
         dry(
@@ -98,10 +103,11 @@ pub async fn run_fill(
     }
     let transport = snact_cdp::connect(port).await?;
     snact_core::action::fill::execute(&transport, ref_id, value).await?;
-    ok_with_snap(&transport, fmt, "fill", lang, no_snap).await;
+    ok_with_snap(&transport, fmt, "fill", lang, no_snap, emu).await;
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_type(
     port: u16,
     ref_id: &str,
@@ -110,6 +116,7 @@ pub async fn run_type(
     dry_run: bool,
     no_snap: bool,
     lang: &str,
+    emu: &snact_core::snap::EmulationOptions,
 ) -> Result<()> {
     if dry_run {
         dry(
@@ -121,10 +128,11 @@ pub async fn run_type(
     }
     let transport = snact_cdp::connect(port).await?;
     snact_core::action::type_text::execute(&transport, ref_id, text).await?;
-    ok_with_snap(&transport, fmt, "type", lang, no_snap).await;
+    ok_with_snap(&transport, fmt, "type", lang, no_snap, emu).await;
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_select(
     port: u16,
     ref_id: &str,
@@ -133,6 +141,7 @@ pub async fn run_select(
     dry_run: bool,
     no_snap: bool,
     lang: &str,
+    emu: &snact_core::snap::EmulationOptions,
 ) -> Result<()> {
     if dry_run {
         dry(
@@ -144,10 +153,11 @@ pub async fn run_select(
     }
     let transport = snact_cdp::connect(port).await?;
     snact_core::action::select::execute(&transport, ref_id, value).await?;
-    ok_with_snap(&transport, fmt, "select", lang, no_snap).await;
+    ok_with_snap(&transport, fmt, "select", lang, no_snap, emu).await;
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn run_scroll(
     port: u16,
     direction: &str,
@@ -156,6 +166,7 @@ pub async fn run_scroll(
     dry_run: bool,
     no_snap: bool,
     lang: &str,
+    emu: &snact_core::snap::EmulationOptions,
 ) -> Result<()> {
     if dry_run {
         dry(
@@ -167,7 +178,7 @@ pub async fn run_scroll(
     }
     let transport = snact_cdp::connect(port).await?;
     snact_core::action::scroll::execute(&transport, direction, amount).await?;
-    ok_with_snap(&transport, fmt, "scroll", lang, no_snap).await;
+    ok_with_snap(&transport, fmt, "scroll", lang, no_snap, emu).await;
     Ok(())
 }
 

@@ -204,7 +204,8 @@ fn tool_list() -> Value {
 
 /// After a mutation action, perform settle + re-snap and return combined output.
 async fn mcp_action_with_snap(transport: &snact_cdp::CdpTransport, action: &str) -> Result<String> {
-    if let Some(snap) = snact_core::action::post_action_snap(transport, "en-US").await {
+    let emu = snact_core::snap::EmulationOptions::default();
+    if let Some(snap) = snact_core::action::post_action_snap(transport, "en-US", &emu).await {
         Ok(format!("ok\n\n---\n\n{}", snap.output))
     } else {
         Ok(format!("{{\"status\":\"ok\",\"action\":\"{action}\"}}"))
@@ -230,7 +231,8 @@ async fn call_tool(name: &str, args: &Value, port: u16) -> Result<String> {
 
             let transport = snact_cdp::connect(port).await?;
             transport.send(&snact_cdp::commands::PageEnable {}).await?;
-            let result = snact_core::snap::execute(&transport, url, focus, lang).await?;
+            let emu = snact_core::snap::EmulationOptions::default();
+            let result = snact_core::snap::execute(&transport, url, focus, lang, &emu).await?;
             Ok(result.output)
         }
         "read" => {
@@ -247,7 +249,9 @@ async fn call_tool(name: &str, args: &Value, port: u16) -> Result<String> {
             }
 
             let transport = snact_cdp::connect(port).await?;
-            let result = snact_core::read::execute(&transport, url, focus, lang, max_lines).await?;
+            let emu = snact_core::snap::EmulationOptions::default();
+            let result =
+                snact_core::read::execute(&transport, url, focus, lang, max_lines, &emu).await?;
             Ok(result.output)
         }
         "click" => {

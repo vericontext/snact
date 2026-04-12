@@ -7,10 +7,11 @@ pub async fn run(
     fmt: &str,
     lang: &str,
     max_lines: usize,
+    emu: &snact_core::snap::EmulationOptions,
 ) -> Result<()> {
     let transport = snact_cdp::connect(port).await?;
 
-    let result = snact_core::read::execute(&transport, url, focus, lang, max_lines).await?;
+    let result = snact_core::read::execute(&transport, url, focus, lang, max_lines, emu).await?;
 
     match fmt {
         "json" => {

@@ -749,3 +749,52 @@ impl CdpCommand for EmulationSetDeviceMetricsOverride {
         "Emulation.setDeviceMetricsOverride"
     }
 }
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmulationSetGeolocationOverride {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub latitude: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub longitude: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub accuracy: Option<f64>,
+}
+
+impl CdpCommand for EmulationSetGeolocationOverride {
+    type Response = serde_json::Value;
+    fn method_name(&self) -> &'static str {
+        "Emulation.setGeolocationOverride"
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmulationSetLocaleOverride {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub locale: Option<String>,
+}
+
+impl CdpCommand for EmulationSetLocaleOverride {
+    type Response = serde_json::Value;
+    fn method_name(&self) -> &'static str {
+        "Emulation.setLocaleOverride"
+    }
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EmulationSetUserAgentOverride {
+    pub user_agent: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub accept_language: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub platform: Option<String>,
+}
+
+impl CdpCommand for EmulationSetUserAgentOverride {
+    type Response = serde_json::Value;
+    fn method_name(&self) -> &'static str {
+        "Emulation.setUserAgentOverride"
+    }
+}

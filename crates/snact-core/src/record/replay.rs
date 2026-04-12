@@ -43,7 +43,14 @@ pub async fn execute(
             "snap" => {
                 let url = step.args.get("url").map(|s| s.as_str());
                 let focus = step.args.get("focus").map(|s| s.as_str());
-                snap::execute(transport, url, focus, "en-US").await?;
+                snap::execute(
+                    transport,
+                    url,
+                    focus,
+                    "en-US",
+                    &snap::EmulationOptions::default(),
+                )
+                .await?;
             }
             "click" => {
                 if let Some(ref_id) = step.args.get("ref") {

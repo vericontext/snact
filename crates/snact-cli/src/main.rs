@@ -27,6 +27,18 @@ struct Cli {
     #[arg(long, default_value = "en-US", global = true)]
     lang: String,
 
+    /// Override geolocation (e.g. "37.7749,-122.4194" for San Francisco)
+    #[arg(long, global = true)]
+    geo: Option<String>,
+
+    /// Override JS navigator.language / Intl locale (e.g. "en-US")
+    #[arg(long, global = true)]
+    locale: Option<String>,
+
+    /// Override User-Agent string
+    #[arg(long, global = true)]
+    user_agent: Option<String>,
+
     /// Verbose logging
     #[arg(long, global = true)]
     verbose: bool,
@@ -348,13 +360,38 @@ fn emit_error(err: &anyhow::Error, fmt: &str) {
     }
 }
 
+fn parse_geo(s: &str) -> Option<(f64, f64)> {
+    let parts: Vec<&str> = s.split(',').collect();
+    if parts.len() == 2 {
+        let lat = parts[0].trim().parse::<f64>().ok()?;
+        let lon = parts[1].trim().parse::<f64>().ok()?;
+        Some((lat, lon))
+    } else {
+        None
+    }
+}
+
 async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
+    let emu = snact_core::snap::EmulationOptions {
+        geo: cli.geo.as_deref().and_then(parse_geo),
+        locale: cli.locale.clone(),
+        user_agent: cli.user_agent.clone(),
+    };
+
     match cli.command {
         Commands::Snap { url, focus } => {
             if let Some(f) = &focus {
                 validate::css_selector(f)?;
             }
-            cmd::snap::run(cli.port, url.as_deref(), focus.as_deref(), fmt, &cli.lang).await?;
+            cmd::snap::run(
+                cli.port,
+                url.as_deref(),
+                focus.as_deref(),
+                fmt,
+                &cli.lang,
+                &emu,
+            )
+            .await?;
         }
         Commands::Read {
             url,
@@ -371,6 +408,7 @@ async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
                 fmt,
                 &cli.lang,
                 max_lines,
+                &emu,
             )
             .await?;
         }
@@ -379,8 +417,16 @@ async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
             no_snap,
         } => {
             validate::element_ref(&element_ref)?;
-            cmd::action::run_click(cli.port, &element_ref, fmt, cli.dry_run, no_snap, &cli.lang)
-                .await?;
+            cmd::action::run_click(
+                cli.port,
+                &element_ref,
+                fmt,
+                cli.dry_run,
+                no_snap,
+                &cli.lang,
+                &emu,
+            )
+            .await?;
         }
         Commands::Fill {
             element_ref,
@@ -397,6 +443,7 @@ async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
                 cli.dry_run,
                 no_snap,
                 &cli.lang,
+                &emu,
             )
             .await?;
         }
@@ -415,6 +462,7 @@ async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
                 cli.dry_run,
                 no_snap,
                 &cli.lang,
+                &emu,
             )
             .await?;
         }
@@ -432,6 +480,7 @@ async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
                 cli.dry_run,
                 no_snap,
                 &cli.lang,
+                &emu,
             )
             .await?;
         }
@@ -448,6 +497,7 @@ async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
                 cli.dry_run,
                 no_snap,
                 &cli.lang,
+                &emu,
             )
             .await?;
         }

@@ -3,9 +3,7 @@
 //! the human-readable text content of a page so an AI agent can understand
 //! what is displayed without taking a screenshot.
 
-use snact_cdp::commands::{
-    NetworkEnable, NetworkSetExtraHTTPHeaders, PageNavigate, RuntimeEvaluate,
-};
+use snact_cdp::commands::{PageNavigate, RuntimeEvaluate};
 use snact_cdp::CdpTransport;
 
 /// Result of a read operation.
@@ -164,16 +162,10 @@ pub async fn execute(
     focus: Option<&str>,
     lang: &str,
     max_lines: usize,
+    emu: &crate::snap::EmulationOptions,
 ) -> Result<ReadResult, snact_cdp::CdpTransportError> {
-    // Set Accept-Language header
-    {
-        transport.send(&NetworkEnable {}).await?;
-        let mut headers = std::collections::HashMap::new();
-        headers.insert("Accept-Language".to_string(), format!("{lang},en;q=0.9"));
-        transport
-            .send(&NetworkSetExtraHTTPHeaders { headers })
-            .await?;
-    }
+    // Apply environment overrides (Accept-Language, geo, locale, user-agent)
+    crate::snap::apply_emulation(transport, lang, emu).await?;
 
     // Navigate if URL provided
     if let Some(url) = url {
