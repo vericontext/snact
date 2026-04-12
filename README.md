@@ -40,6 +40,8 @@ Every action automatically returns a fresh page snapshot &mdash; no manual re-sn
 
 ## Performance comparison
 
+> **Task:** Visit npmjs.com for 10 React state management libraries (zustand, jotai, recoil, valtio, mobx, redux, xstate, effector, nanostores, legend-state). Collect weekly downloads, last publish date, unpacked size, and dependencies for each.
+
 https://github.com/user-attachments/assets/544718bf-747a-446a-896a-f2c5c376f3d7
 
 <sup>Both sides played at 16x speed. Left: Playwright MCP (5m 17s real time). Right: snact CLI (2m 39s real time).</sup>
@@ -51,15 +53,21 @@ https://github.com/user-attachments/assets/544718bf-747a-446a-896a-f2c5c376f3d7
 | **Message tokens** | **18.8K** | 20.1K | 73.4K |
 | **Data accuracy** | Correct | Correct | Correct |
 
-snact finished in half the time with half the tokens. All three produced identical data. See [detailed analysis](#detailed-analysis).
+snact finished in half the time with half the tokens. All three produced identical data.
+
+**Speed:** Both Playwright approaches took ~5 minutes. snact finished in 2m 39s. **Token efficiency:** snact and Playwright CLI used similar total tokens (~34-35K), but Playwright MCP consumed 2.5x more (88K) due to accessibility tree snapshots accumulating in context. **Answer quality:** All three produced identical data with minor format differences.
 
 ### Record & Replay
+
+> **Record task:** Use snact to record a workflow called "npm-react-state" that visits npmjs.com for these 10 libraries. For each, snap the page and read the sidebar stats.
+>
+> **Replay task:** Replay npm-react-state and build me an updated comparison table.
 
 https://github.com/user-attachments/assets/513519ee-93e8-49f5-b398-d3d35dd2ebde
 
 <sup>Played at 8x speed. First: record (2m 18s real time). Then: replay (47s real time).</sup>
 
-Same task, recorded once and replayed. The replay skips all LLM reasoning &mdash; it re-executes the recorded commands directly against Chrome and returns fresh data.
+The replay skips all LLM reasoning &mdash; it re-executes the recorded commands directly against Chrome and returns fresh data.
 
 | | Record (first run) | Replay |
 |--|---------------------|--------|
@@ -379,16 +387,6 @@ snact/
 ```
 
 Workflows save to project scope when `.snact/` exists, otherwise user scope. On load, project scope takes priority.
-
-## Detailed analysis
-
-> Task: Visit npmjs.com for 10 React state management libraries (zustand, jotai, recoil, valtio, mobx, redux, xstate, effector, nanostores, legend-state). Collect weekly downloads, last publish date, unpacked size, and dependencies.
-
-**Speed:** snact finished in half the time (2m 39s vs ~5m). Both Playwright approaches took similar time (~5m 10-17s).
-
-**Token efficiency:** snact and Playwright CLI used similar total tokens (~34-35K), but Playwright MCP consumed 2.5x more (88K) due to accessibility tree snapshots accumulating in context. MCP's message tokens alone (73.4K) were 3.9x higher than snact's (18.8K).
-
-**Answer quality:** All three produced identical data. Minor format differences: snact used relative dates and abbreviated downloads; Playwright CLI provided absolute dates; Playwright MCP included exact download counts.
 
 <details>
 <summary>Per-page token measurements</summary>
