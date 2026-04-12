@@ -40,8 +40,6 @@ Every action automatically returns a fresh page snapshot &mdash; no manual re-sn
 
 ## Benchmark
 
-> **Task:** Visit npmjs.com for 10 React state management libraries. Collect weekly downloads, last publish date, unpacked size, and dependencies for each. Compile into a comparison table.
-
 https://github.com/user-attachments/assets/544718bf-747a-446a-896a-f2c5c376f3d7
 
 <sup>Both sides played at 16x speed. Left: Playwright MCP (5m 17s real time). Right: snact CLI (2m 39s real time).</sup>

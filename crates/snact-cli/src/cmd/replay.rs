@@ -47,6 +47,22 @@ pub async fn run(port: u16, name: &str, speed: f64, fmt: &str, dry_run: bool) ->
             println!("---\n{}", snap.output);
             eprintln!("({} elements)", snap.element_count);
         }
+        // Show last read result if available
+        if let Some(read) = &result.last_read {
+            println!("---\n{}", read.output);
+            eprintln!("({} lines)", read.line_count);
+        }
+        // Show last eval result if available
+        if let Some(eval) = &result.last_eval {
+            match eval {
+                serde_json::Value::String(s) => println!("---\n{s}"),
+                serde_json::Value::Null => println!("---\nundefined"),
+                other => println!(
+                    "---\n{}",
+                    serde_json::to_string_pretty(other).unwrap_or_default()
+                ),
+            }
+        }
         for warning in &result.warnings {
             eprintln!("warning: {warning}");
         }

@@ -81,39 +81,65 @@ For international sites (e.g. Amazon showing KRW), use `--locale=en-US` to force
 
 ---
 
-### Demo 3: Repeat automation — teach once, replay forever
+### Demo 3: Record & Replay — teach once, run forever
 
-**Day 1 — teach it once:**
+This demo shows the full loop: Claude Code records a workflow interactively, then replays it on demand with zero LLM tokens.
 
+**Step 1 — record (Claude Code does it, you watch):**
+
+Prompt:
 ```
-Save my current browser session as "apple".
-Then record checking MacBook Pro pricing as "mbp-price".
-```
-
-Claude Code saves the session, navigates to apple.com, snaps + reads, and records the workflow.
-
-```
-Done. Say "check mbp price" any time.
+Use snact to record a workflow called "npm-zustand" that checks the
+zustand package page on npmjs.com — version and last publish date.
 ```
 
-**Day 2, 3, 4 ... — zero tokens:**
+What Claude Code runs:
+```bash
+snact record start npm-zustand
+snact snap https://www.npmjs.com/package/zustand
+snact record stop
+# Recording saved: npm-zustand (1 steps)
+#   → .snact/workflows/npm-zustand.json
+```
 
-```
-check mbp price
-```
+The snap output already surfaces version and publish date in the page header — no additional read needed.
+
+**Step 2 — list to confirm:**
 
 ```bash
-# Everything Claude Code runs:
-snact session load apple
-snact replay mbp-price
+snact record list
+# npm-zustand  (project)
+```
+
+**Step 3 — replay (next session, zero LLM calls):**
+
+Prompt:
+```
+Replay npm-zustand and tell me the current version and publish date.
+```
+
+What Claude Code runs:
+```bash
+snact replay npm-zustand
 ```
 
 ```
-MacBook Pro 14" M4 Pro — $1,999
-Storage: 512GB / 1TB / 2TB / 4TB
+Replay complete: 1/1 steps
+---
+# zustand
+> 5.0.12 • Public • Published a month ago
+@e1 [link] "Readme"
+@e2 [link] "5.0.12" href="/package/zustand/v/5.0.12"
+...
 ```
 
-**LLM reasoning: 0 turns. Tokens: 0. Time: 2 seconds.**
+Claude reads the snap output and answers — one replay call, no navigation, no extra turns.
+
+**Same prompt tomorrow:** identical two commands, same speed, zero tokens for the replay itself.
+
+---
+
+> **Note:** All data-gathering commands (`snap`, `read`, `eval`) and all actions (`click`, `fill`, `type`, `select`, `scroll`, `wait`, `screenshot`) are recorded and replayable.
 
 ---
 

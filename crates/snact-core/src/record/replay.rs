@@ -6,6 +6,7 @@ use snact_cdp::CdpTransport;
 
 use super::workflow::Workflow;
 use crate::action;
+use crate::read;
 use crate::snap;
 
 /// Replay a recorded workflow.
@@ -26,6 +27,8 @@ pub async fn execute(
         warnings: Vec::new(),
         failed_step: None,
         last_snap: None,
+        last_read: None,
+        last_eval: None,
     };
 
     let mut prev_ts = 0u64;
@@ -85,6 +88,38 @@ pub async fn execute(
                 let amount = step.args.get("amount").and_then(|s| s.parse().ok());
                 action::scroll::execute(transport, dir, amount).await?;
             }
+            "read" => {
+                let url = step.args.get("url").map(|s| s.as_str());
+                let focus = step.args.get("focus").map(|s| s.as_str());
+                let read_result = read::execute(
+                    transport,
+                    url,
+                    focus,
+                    "en-US",
+                    500,
+                    &snap::EmulationOptions::default(),
+                )
+                .await?;
+                result.last_read = Some(read_result);
+            }
+            "eval" => {
+                if let Some(expression) = step.args.get("expression") {
+                    let eval_result = transport
+                        .send(&snact_cdp::commands::RuntimeEvaluate {
+                            expression: expression.to_string(),
+                            return_by_value: Some(true),
+                            await_promise: Some(true),
+                            context_id: None,
+                        })
+                        .await?;
+                    let value = eval_result.result.value.unwrap_or(serde_json::Value::Null);
+                    result.last_eval = Some(value);
+                }
+            }
+            "screenshot" => {
+                let output = step.args.get("file").map(|s| s.as_str());
+                action::screenshot::execute(transport, output).await?;
+            }
             "wait" => {
                 if let Some(condition) = step.args.get("condition") {
                     match condition.as_str() {
@@ -126,4 +161,8 @@ pub struct ReplayResult {
     pub failed_step: Option<u32>,
     /// Snap output from the last snap step (if any).
     pub last_snap: Option<snap::SnapResult>,
+    /// Read output from the last read step (if any).
+    pub last_read: Option<read::ReadResult>,
+    /// Eval output from the last eval step (if any).
+    pub last_eval: Option<serde_json::Value>,
 }

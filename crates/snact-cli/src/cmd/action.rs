@@ -218,6 +218,11 @@ pub async fn run_scroll(
 pub async fn run_screenshot(port: u16, output: Option<&str>, fmt: &str) -> Result<()> {
     let transport = snact_cdp::connect(port).await?;
     let path = snact_core::action::screenshot::execute(&transport, output).await?;
+    let mut args = HashMap::new();
+    if let Some(o) = output {
+        args.insert("file".into(), o.into());
+    }
+    maybe_record("screenshot", args);
     ok(fmt, "screenshot", Some(("path", &path)));
     Ok(())
 }
@@ -234,6 +239,10 @@ pub async fn run_wait(port: u16, condition: &str, fmt: &str) -> Result<()> {
     };
 
     snact_core::action::wait::execute(&transport, wait_condition).await?;
+    maybe_record(
+        "wait",
+        HashMap::from([("condition".into(), condition.into())]),
+    );
     ok(fmt, "wait", None);
     Ok(())
 }
@@ -254,6 +263,11 @@ pub async fn run_eval(port: u16, expression: &str, fmt: &str) -> Result<()> {
     }
 
     let value = result.result.value.unwrap_or(serde_json::Value::Null);
+
+    maybe_record(
+        "eval",
+        HashMap::from([("expression".into(), expression.into())]),
+    );
 
     if fmt == "json" {
         println!("{}", serde_json::to_string(&value)?);
