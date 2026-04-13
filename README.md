@@ -243,7 +243,7 @@ snact replay login-flow
 | `browser launch\|stop\|status` | Manage Chrome instance |
 | `schema [command]` | JSON Schema introspection |
 | `mcp` | Start MCP server (JSON-RPC over stdio) |
-| `init` | Create AGENT.md for Claude Code skill discovery |
+| `init` | Create AGENTS.md for AI coding agent skill discovery |
 
 ### Global flags
 
@@ -274,7 +274,7 @@ claude
 # "Use snact to find the MacBook Pro M4 Pro price on apple.com"
 ```
 
-Run `snact init` in your project directory to create an AGENT.md skill file for Claude Code.
+Run `snact init` in your project directory to create an AGENTS.md file for Claude Code, Codex, opencode, and other AI coding agents.
 
 ### MCP server
 

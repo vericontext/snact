@@ -113,7 +113,7 @@ install() {
         echo ""
         echo "  Project setup (optional):"
         echo ""
-        echo "    cd your-project && snact init       # create .snact/ + AGENT.md"
+        echo "    cd your-project && snact init       # create .snact/ + AGENTS.md"
         echo ""
         echo "  Full docs: snact --help"
     else

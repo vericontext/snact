@@ -205,8 +205,8 @@ enum Commands {
         command: Option<String>,
     },
 
-    /// Write AGENT.md to the current directory for Claude Code skill discovery.
-    /// Run this once in your project to enable Claude Code to use snact as a skill.
+    /// Write AGENTS.md to the current directory for AI coding agent skill discovery.
+    /// Run this once in your project to enable Claude Code, Codex, opencode, etc.
     Init,
 }
 
@@ -313,7 +313,7 @@ EXAMPLES:
 SCHEMA / MCP / INIT:
   snact schema [command]                     # JSON Schema introspection
   snact mcp                                  # start MCP server (JSON-RPC stdio)
-  snact init                                 # create AGENT.md for Claude Code
+  snact init                                 # create AGENTS.md for AI coding agents
 
 SAFETY:
   --dry-run on any mutation shows what would execute without acting
@@ -599,12 +599,12 @@ async fn dispatch(cli: Cli, fmt: &str) -> anyhow::Result<()> {
                 created.push(".snact/workflows/");
             }
 
-            // Create AGENT.md for Claude Code skill discovery
-            let agent_path = std::path::Path::new("AGENT.md");
+            // Create AGENTS.md for AI coding agent skill discovery
+            let agent_path = std::path::Path::new("AGENTS.md");
             if !agent_path.exists() {
-                let agent_md = include_str!("../../../AGENT.md");
+                let agent_md = include_str!("../../../AGENTS.md");
                 std::fs::write(agent_path, agent_md)?;
-                created.push("AGENT.md");
+                created.push("AGENTS.md");
             }
 
             // Create .snact/.gitkeep so empty dir is tracked by git
